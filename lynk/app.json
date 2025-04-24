@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "lynk",
+    "slug": "lynk",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "myapp",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.anonymous.lynk"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#ffffff"
+      },
+      "package": "com.anonymous.lynk"
+    },
+    "plugins": [
+      "expo-router"
+    ],
+    "newArchEnabled": true
+  }
+}
