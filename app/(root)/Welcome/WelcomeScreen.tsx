@@ -26,7 +26,7 @@ export const WelcomeScreen: React.FC = () => {
           <Text style={styles.subtitle}>Let's get you started!</Text>
         </View>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Terms')} accessibilityRole="link">
+        <TouchableOpacity onPress={() => router.push('/(root)/Terms')} accessibilityRole="link">
           <Text style={styles.termsLink}>Terms &amp; privacy policy</Text>
         </TouchableOpacity>
 
