@@ -15,7 +15,7 @@ const EmailSignupScreen = () => {
 
   const handleContinue = (email: string) => {
     setEmail(email);
-    navigation.navigate('EmailVerification');
+    
   };
 
   return (

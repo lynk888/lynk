@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 
@@ -28,7 +29,7 @@ const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
         placeholderTextColor="#888"
       />
 
-      <TouchableOpacity style={styles.button} onPress={() => handleSubmit()}>
+      <TouchableOpacity style={styles.button} onPress={() => router.push('/(auth)/EmailVerification/EmailVerificationScreen')}>
         <Text style={styles.buttonText}>Continue</Text>
       </TouchableOpacity>
     </View>

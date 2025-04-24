@@ -30,7 +30,7 @@ export const WelcomeScreen: React.FC = () => {
           <Text style={styles.termsLink}>Terms &amp; privacy policy</Text>
         </TouchableOpacity>
 
-        <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup')} />
+        <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup/EmailSignupScreen')} />
         <Button title="Login" onPress={() => router.push('/(auth)/Login')} />
       </View>
     </ScrollView>

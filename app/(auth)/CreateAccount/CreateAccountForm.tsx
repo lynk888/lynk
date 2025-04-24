@@ -4,6 +4,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
+import { router } from 'expo-router';
 
 const CreateAccountForm: React.FC = () => {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -66,7 +67,7 @@ const CreateAccountForm: React.FC = () => {
           styles.submitButton,
           isLoading && styles.submitButtonDisabled
         ]} 
-        onPress={handleRegister}
+       onPress={() => router.push('/(root)/Chat/ChatScreen') } 
         disabled={isLoading}
       >
         {isLoading ? (

@@ -4,7 +4,8 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types';
 import LoadingIcon from './LoadingIcon';
-
+import VerificationScreen from '@/app/(root)/Verification/VerificationScreen';
+import { router } from 'expo-router';
 interface EmailVerificationScreenProps {}
 
 const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = () => {
@@ -13,8 +14,8 @@ const EmailVerificationScreen: React.FC<EmailVerificationScreenProps> = () => {
   useEffect(() => {
     // First timeout: Navigate to Verification screen after 10 seconds
     const verificationTimer = setTimeout(() => {
-      navigation.navigate('CreateAccount');
-    }, 10000);
+      router.push('/(root)/Verification/VerificationScreen');
+    }, 2000);
 
     return () => {
       clearTimeout(verificationTimer);

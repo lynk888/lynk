@@ -1,18 +1,19 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet, Dimensions, Platform } from 'react-native';
-import LinearGradient from 'react-native-linear-gradient';
+import { LinearGradient } from 'expo-linear-gradient';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types/index';
-
+import { useRouter } from 'expo-router';
 type SplashScreenProps = {
   navigation: NativeStackNavigationProp<RootStackParamList, 'Splash'>;
 };
 
 const SplashScreen: React.FC<SplashScreenProps> = ({ navigation }) => {
+  const router = useRouter();
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigation.replace('Welcome');
-    }, 2000);
+      router.replace("/(root)/Welcome/WelcomeScreen")
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, [navigation]);

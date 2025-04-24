@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../types/index';
+import { router } from 'expo-router';
 
 interface VerificationScreenProps {
   onContinue: () => void;
@@ -23,7 +24,7 @@ const VerificationScreen: React.FC<VerificationScreenProps> = ({ onContinue }) =
   return (
     <View style={styles.container}>
       <Text style={styles.verifiedText}>Verified.</Text>
-      <TouchableOpacity style={styles.continueButton} onPress={onContinue}>
+      <TouchableOpacity style={styles.continueButton} onPress={() => router.push('/(auth)/CreateAccount/CreateAccountScreen')}>
         <Text style={styles.continueButtonText}>Continue</Text>
       </TouchableOpacity>
     </View>

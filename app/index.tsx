@@ -8,5 +8,5 @@ export default function Index() {
     return <Redirect href="/(root)/Home/HomeScreen" />;
   }
 
-  return <Redirect href="/(root)/Welcome/WelcomeScreen" />;
+  return <Redirect href="/(root)/splash/splashscreen" />;
 }
