@@ -1,13 +1,10 @@
 import React from 'react';
-import { View, StyleSheet, Image } from 'react-native';
+import { View, StyleSheet } from 'react-native';
 
 const WelcomeIllustration: React.FC = () => {
   return (
     <View style={styles.container}>
-      <Image 
-        source={{ uri: './assets/images/image1.jpeg' }}
-        style={styles.image}
-      />
+      <View style={styles.placeholderImage} />
     </View>
   );
 };
@@ -18,11 +15,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 20,
   },
-  image: {
+  placeholderImage: {
     width: 300,
     height: 200,
     borderRadius: 10,
-    alignItems: 'center',
+    backgroundColor: '#E1E1E1',
   }
 });
 

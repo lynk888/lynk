@@ -1,0 +1,13 @@
+diff --git a/node_modules/zustand/esm/middleware.mjs b/node_modules/zustand/esm/middleware.mjs
+index 1234567..abcdef0 100644
+--- a/node_modules/zustand/esm/middleware.mjs
++++ b/node_modules/zustand/esm/middleware.mjs
+@@ -38,7 +38,7 @@ export const devtools = (fn, options = {}) => (set, get, api) => {
+   const { name, enabled, anonymousActionType } = options;
+   let extensionConnector;
+   try {
+-    extensionConnector = (enabled != null ? enabled : (import.meta.env ? import.meta.env.MODE : void 0) !== "production") && window.__REDUX_DEVTOOLS_EXTENSION__;
++    extensionConnector = (enabled != null ? enabled : false) && window.__REDUX_DEVTOOLS_EXTENSION__;
+   } catch (e) {
+   }
+   if (!extensionConnector) {

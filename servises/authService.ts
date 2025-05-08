@@ -1,3 +1,4 @@
+import { auth } from '../config/firebaseConfig';
 import { DatabaseService } from './databaseService';
 
 interface RegisterUserParams {
@@ -15,7 +16,7 @@ interface RegisterResponse {
 export const registerUser = async ({
   email,
   username,
-  password,
+  // password is not used in this implementation
 }: RegisterUserParams): Promise<RegisterResponse> => {
   try {
     // TODO: Implement Neon registration
@@ -32,29 +33,29 @@ export const registerUser = async ({
   } catch (error) {
     return {
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
   }
 };
 
 export const loginUser = async (email: string, password: string): Promise<RegisterResponse> => {
   try {
-    // TODO: Implement Neon login
-    const userProfile = await DatabaseService.getUserProfile('temp-user-id');
-    
+    const { signInWithEmailAndPassword } = await import('firebase/auth');
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
     return {
       success: true,
-      token: 'temp-token'
+      token: userCredential.user.uid
     };
   } catch (error) {
     return {
       success: false,
-      error: error.message
+      error: error instanceof Error ? error.message : 'An unknown error occurred'
     };
   }
 };
 
 export const signOut = async (): Promise<void> => {
-  await auth().signOut();
+  const { signOut: firebaseSignOut } = await import('firebase/auth');
+  await firebaseSignOut(auth);
 };
 

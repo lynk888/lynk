@@ -4,10 +4,7 @@ import { View, StyleSheet, Image } from 'react-native';
 const StatusBar: React.FC = () => {
   return (
     <View style={styles.container}>
-       <Image 
-         source={{ uri: './assets/images/image1.jpeg' }}
-            
-            />
+      {/* Removed problematic image */}
       <View style={styles.bar} />
     </View>
   );

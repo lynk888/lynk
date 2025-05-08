@@ -1,4 +1,4 @@
-package com.anonymous.lynk
+package com.rnlynk
 
 import android.app.Application
 import android.content.res.Configuration

@@ -12,11 +12,7 @@ export const WelcomeScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image 
-          source={require('../../../assets/images/IMAGE2.jpg')}
-          style={styles.image}
-          resizeMode="contain"
-        />
+        <View style={styles.placeholderImage} />
       </View>
       <View style={styles.content}>
         <ProgressDots />
@@ -77,11 +73,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textDecorationLine: 'underline',
   },
-  image: {
+  placeholderImage: {
     width: 300,
-    height: 500,
+    height: 200,
     borderRadius: 10,
-  }
+    backgroundColor: '#E1E1E1',
+  },
 });
 
 export default WelcomeScreen;

@@ -1,10 +1,11 @@
 import { Stack } from 'expo-router';
-import { useColorScheme } from 'react-native';
+import { useColorScheme, Alert } from 'react-native';
 import { ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { SplashScreen } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider } from '../context/AuthContext';
+import ErrorBoundary from '../components/ErrorBoundary';
 
 export default function RootLayout() {
   const colorScheme = useColorScheme();
@@ -22,25 +23,32 @@ export default function RootLayout() {
     return null;
   }
 
+  // Handle errors at the app level
+  const handleError = (error: Error) => {
+    console.error('App-level error caught:', error);
+  };
+
   return (
-    <AuthProvider>
-      <Stack>
-        <Stack.Screen 
-          name="(auth)" 
-          options={{ headerShown: false }} 
-        />
-        <Stack.Screen 
-          name="(root)" 
-          options={{ headerShown: false }} 
-        />
-        <Stack.Screen 
-          name="+not-found" 
-          options={{ 
-            presentation: 'modal',
-            headerShown: true 
-          }} 
-        />
-      </Stack>
-    </AuthProvider>
+    <ErrorBoundary onError={handleError}>
+      <AuthProvider>
+        <Stack>
+          <Stack.Screen
+            name="(auth)"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="(root)"
+            options={{ headerShown: false }}
+          />
+          <Stack.Screen
+            name="+not-found"
+            options={{
+              presentation: 'modal',
+              headerShown: true
+            }}
+          />
+        </Stack>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

@@ -8,39 +8,10 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Camera, Phone, Plus, Settings, Users } from "lucide-react-native";
+import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 
 function MyComponent() {
-  // Navigation data for the bottom tabs
-  const navigationItems = [
-    {
-      name: "Contacts",
-      icon: <Users size={24} color="#0000004c" />,
-      active: false,
-    },
-    {
-      name: "Calls",
-      icon: <Phone size={24} color="#0000004c" />,
-      active: false,
-    },
-    {
-      name: "Chats",
-      icon: (
-        <View style={styles.chatIconContainer}>
-          <View style={styles.chatIconBox}>
-            <View style={styles.chatIconLarge} />
-            <View style={styles.chatIconSmall} />
-          </View>
-        </View>
-      ),
-      active: true,
-    },
-    {
-      name: "Settings",
-      icon: <Settings size={24} color="#0000004c" />,
-      active: false,
-    },
-  ];
-
   return (
     <View style={styles.view1}>
       <View style={styles.view2}>
@@ -82,21 +53,37 @@ function MyComponent() {
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
-        <View style={styles.bottomNavContent}>
-          {navigationItems.map((item, index) => (
-            <View
-              key={index}
-              style={styles.navItem}
-            >
-              <View style={styles.iconContainer}>
-                {item.icon}
-              </View>
-              <Text style={[styles.navText, item.active && styles.activeText]}>
-                {item.name}
-              </Text>
-            </View>
-          ))}
-        </View>
+        <TouchableOpacity 
+          style={styles.navItem} 
+          onPress={() => router.push('/(root)/Chat/Contact/ContactScreen')}
+        >
+          <Ionicons name="people-outline" size={24} color="#8E8E93" />
+          <Text style={styles.navText}>Contact</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => router.push('/(root)/Calls/CallsScreen')}
+        >
+          <Ionicons name="call-outline" size={24} color="#8E8E93" />
+          <Text style={styles.navText}>Calls</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.navItem}>
+          <Ionicons name="chatbubbles" size={24} color="#007AFF" />
+          <Text style={[styles.navText, styles.activeNavText]}>Chat</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>2</Text>
+          </View>
+        </TouchableOpacity>
+        
+        <TouchableOpacity 
+          style={styles.navItem}
+          onPress={() => router.push('/(root)/Settings/SettingsScreen')}
+        >
+          <Ionicons name="settings-outline" size={24} color="#8E8E93" />
+          <Text style={styles.navText}>Settings</Text>
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -214,6 +201,24 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     bottom: 0,
     right: 0,
+  },
+  badge: {
+    position: 'absolute',
+    top: -8,
+    right: -8,
+    backgroundColor: '#007AFF',
+    borderRadius: 10,
+    width: 16,
+    height: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+  },
+  activeNavText: {
+    color: '#007AFF',
   },
 });
 

@@ -1,14 +1,10 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../../types';
-import { useAuth } from '../../../context/AuthContext';
 import { router } from 'expo-router';
+import { useAuth } from '../../../context/AuthContext';
 
 const CreateAccountForm: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { email, setToken } = useAuth();
+  const { signUp } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -22,9 +18,10 @@ const CreateAccountForm: React.FC = () => {
 
     setIsLoading(true);
     try {
-      // Simplified registration logic
-      await setToken('dummy-token');
-      navigation.navigate('Home');
+      // Using a placeholder email since signUp requires email, username, and password
+      const email = `${username}@example.com`;
+      await signUp(email, password, username);
+      router.push('/(root)/Chat/ChatScreen');
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
     } finally {
@@ -67,7 +64,7 @@ const CreateAccountForm: React.FC = () => {
           styles.submitButton,
           isLoading && styles.submitButtonDisabled
         ]} 
-       onPress={() => router.push('/(root)/Chat/ChatScreen') } 
+        onPress={handleRegister}
         disabled={isLoading}
       >
         {isLoading ? (
@@ -168,3 +165,7 @@ const styles = StyleSheet.create({
 });
 
 export default CreateAccountForm;
+function setToken(arg0: string) {
+  throw new Error('Function not implemented.');
+}
+

@@ -4,13 +4,14 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { loginSchema } from '../../../utils/validation';
-import { APIService } from '../../../servises/api';
+import { FirebaseAuthService } from '../../../services/firebaseAuth.service';
 import { useAuth } from '../../../context/AuthContext';
 import { LoginButton } from './LoginButton';
 import { Input } from '../../../components/Input';
 import { useUserStore } from '../../../store/useStore';
 import { StatusBar } from './StatusBar';
 import { DotMenu } from './DotMenu';
+import { SafeStorage } from '../../../utils/safeStorage';
 
 interface LoginForm {
   email: string;
@@ -19,7 +20,7 @@ interface LoginForm {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { setToken, setEmail } = useAuth();
+  const { setEmail } = useAuth();
   const setIsLoading = useUserStore((state) => state.setIsLoading);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -29,16 +30,19 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      const result = await APIService.login(data.email, data.password);
-      if (result.success) {
+      const user = await FirebaseAuthService.signIn(data.email, data.password);
+      if (user) {
         setEmail(data.email);
-        setToken(result.user.uid);
-        router.replace('./(root)/Home');
-      } else {
-        Alert.alert('Error', result.error);
+        // Handle the return value from storeToken using SafeStorage
+        const tokenStored = await SafeStorage.storeToken(user.uid);
+        if (!tokenStored) {
+          console.warn('Failed to store authentication token securely');
+          // Continue anyway since this is not critical for the app to function
+        }
+        router.replace('/(root)/Home');
       }
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }

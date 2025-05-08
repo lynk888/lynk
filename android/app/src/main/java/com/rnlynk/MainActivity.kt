@@ -1,4 +1,4 @@
-package com.anonymous.lynk
+package com.rnlynk
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build

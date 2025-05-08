@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "249356992339",
+    "firebase_url": "https://lynk-ba4ff-default-rtdb.firebaseio.com",
+    "project_id": "lynk-ba4ff",
+    "storage_bucket": "lynk-ba4ff.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:249356992339:android:6fa7a41d6b5c14e851aba6",
+        "android_client_info": {
+          "package_name": "com.rnlynk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD4deZtM3CKFWJfbJSDo4zEIgIWy3Wu4mA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
