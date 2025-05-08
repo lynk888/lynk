@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "988885380962",
+    "project_id": "lynk-4fe3b",
+    "storage_bucket": "lynk-4fe3b.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:988885380962:android:be3e7b35c5658542e3063b",
+        "android_client_info": {
+          "package_name": "com.anonymous.lynk"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAnKnlPYJ_ar7t5fDwuvCPQNWkBc2PXqLc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
