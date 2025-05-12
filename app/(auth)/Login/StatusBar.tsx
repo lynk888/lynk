@@ -1,10 +1,11 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Path, Rect } from 'react-native-svg';
+import { StatusBar as RNStatusBar } from 'react-native';
 
 interface StatusBarProps {}
 
-export const StatusBar: React.FC<StatusBarProps> = () => {
+const StatusBar: React.FC<StatusBarProps> = () => {
   return (
     <View style={styles.container}>
       <View style={styles.timeContainer}>
@@ -20,6 +21,8 @@ export const StatusBar: React.FC<StatusBarProps> = () => {
     </View>
   );
 };
+
+export default StatusBar;
 
 const styles = StyleSheet.create({
   container: {

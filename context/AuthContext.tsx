@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '../utils/supabase';
 
 type AuthContextType = {
   isAuthenticated: boolean;
@@ -16,6 +17,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setTokenState] = useState<string | null>(null);
   const [email, setEmailState] = useState<string | null>(null);
 
+  useEffect(() => {
+    // Check for existing session on mount
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.access_token) {
+        setTokenState(session.access_token);
+        setEmailState(session.user.email || null);
+      }
+    };
+    checkSession();
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.access_token) {
+        setTokenState(session.access_token);
+        setEmailState(session.user.email || null);
+      } else {
+        setTokenState(null);
+        setEmailState(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
   const setToken = async (newToken: string | null) => {
     if (newToken) {
       await AsyncStorage.setItem('userToken', newToken);
@@ -30,6 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
+    await supabase.auth.signOut();
     await AsyncStorage.removeItem('userToken');
     setTokenState(null);
     setEmailState(null);

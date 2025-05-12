@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../../types';
+import { useRouter } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
+import { supabase } from '../../../utils/supabase';
 
 const CreateAccountForm: React.FC = () => {
-  const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+  const router = useRouter();
   const { email, setToken } = useAuth();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -19,60 +18,84 @@ const CreateAccountForm: React.FC = () => {
       return;
     }
 
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
     setIsLoading(true);
     try {
-      // Simplified registration logic
-      await setToken('dummy-token');
-      navigation.navigate('Home');
-    } catch (error) {
-      Alert.alert('Error', 'An unexpected error occurred');
+      // First, sign up with email and password
+      const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+        email: email!,
+        password: password,
+        options: {
+          data: {
+            username: username,
+            email_confirmed: true
+          }
+        }
+      });
+
+      if (signUpError) throw signUpError;
+
+      if (signUpData.session?.access_token) {
+        await setToken(signUpData.session.access_token);
+        router.replace('/(root)/Home/HomeScreen');
+      } else {
+        throw new Error('No session found after sign up');
+      }
+    } catch (error: any) {
+      Alert.alert('Error', error?.message || 'An unexpected error occurred');
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <View style={styles.formContainer}>
-      <Text style={styles.title}>Create an Account</Text>
-      <Text style={styles.label}>username</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Create Your Account</Text>
+      <Text style={styles.subtitle}>Choose a username and password</Text>
+
       <TextInput
         style={styles.input}
         value={username}
         onChangeText={setUsername}
-        accessibilityLabel="Enter username"
+        placeholder="Choose a username"
         autoCapitalize="none"
+        placeholderTextColor="#888"
+        editable={!isLoading}
       />
-      <Text style={styles.helperText}>only use letter, numbers and underscores.</Text>
-      <Text style={styles.label}>Password</Text>
-      <View style={[styles.input, styles.passwordInputContainer]}>
+
+      <View style={styles.passwordContainer}>
         <TextInput
-          style={styles.passwordInput}
+          style={[styles.input, styles.passwordInput]}
           value={password}
           onChangeText={setPassword}
+          placeholder="Create a password"
           secureTextEntry={!showPassword}
-          accessibilityLabel="Enter password"
-          autoCapitalize="none"
+          placeholderTextColor="#888"
+          editable={!isLoading}
         />
-        <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-          <Image
-            resizeMode="contain"
-            source={{ uri: "https://cdn.builder.io/api/v1/image/assets/TEMP/eec1c142a0c2343e832e86679f5c52ae4f1b8cf8?placeholderIfAbsent=true&apiKey=b3463ce93a5d4046b208184ab25b408e" }}
-            style={styles.passwordVisibilityIcon}
-          />
+        <TouchableOpacity
+          style={styles.showPasswordButton}
+          onPress={() => setShowPassword(!showPassword)}
+        >
+          <Text style={styles.showPasswordText}>
+            {showPassword ? 'Hide' : 'Show'}
+          </Text>
         </TouchableOpacity>
       </View>
-      <TouchableOpacity 
-        style={[
-          styles.submitButton,
-          isLoading && styles.submitButtonDisabled
-        ]} 
+
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleRegister}
         disabled={isLoading}
       >
         {isLoading ? (
-          <ActivityIndicator color="#FFFFFF" />
+          <ActivityIndicator color="#FFF" />
         ) : (
-          <Text style={styles.submitButtonText}>Continue</Text>
+          <Text style={styles.buttonText}>Create Account</Text>
         )}
       </TouchableOpacity>
     </View>
@@ -80,32 +103,24 @@ const CreateAccountForm: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
-  formContainer: {
-    display: 'flex',
-    marginTop: 29,
-    width: '100%',
-    paddingLeft: 41,
-    paddingRight: 41,
-    flexDirection: 'column',
-    alignItems: 'stretch',
+  container: {
+    flex: 1,
+    padding: 24,
+    backgroundColor: '#fff',
   },
   title: {
-    color: 'rgba(0, 0, 0, 1)',
-    fontSize: 32,
-    fontFamily: 'Inter, sans-serif',
+    fontSize: 28,
     fontWeight: '600',
-    lineHeight: 38,
+    color: '#000',
     textAlign: 'center',
-    alignSelf: 'center',
+    marginBottom: 12,
   },
-  label: {
-    color: 'rgba(0, 0, 0, 1)',
+  subtitle: {
     fontSize: 14,
-    fontFamily: 'Inter, sans-serif',
-    fontWeight: '600',
-    lineHeight: 28,
+    fontWeight: '300',
+    color: '#000',
     textAlign: 'center',
-    marginTop: 41,
+    marginBottom: 24,
   },
   input: {
     width: '100%',
@@ -115,54 +130,40 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 14,
     color: '#000',
-    marginBottom: 24,
+    marginBottom: 16,
   },
-  helperText: {
-    color: 'rgba(0, 0, 0, 1)',
-    fontSize: 14,
-    fontFamily: 'Inter, sans-serif',
-    fontWeight: '300',
-    lineHeight: 28,
-    textAlign: 'center',
-    marginTop: 12,
-  },
-  passwordInputContainer: {
-    display: 'flex',
-    marginTop: 12,
-    minHeight: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 0,
-    paddingRight: 0,
-    marginBottom: 0,
+  passwordContainer: {
+    position: 'relative',
+    marginBottom: 16,
   },
   passwordInput: {
-    flex: 1,
-    height: 40,
-    color: '#000',
+    paddingRight: 80,
   },
-  passwordVisibilityIcon: {
-    width: 30,
-    aspectRatio: 2,
-    marginRight: 10,
+  showPasswordButton: {
+    position: 'absolute',
+    right: 16,
+    top: 14,
   },
-  submitButton: {
-    alignSelf: 'stretch',
-    marginTop: 298,
-    padding: 10,
+  showPasswordText: {
+    color: '#7CC2E4',
+    fontSize: 14,
+  },
+  button: {
+    width: '100%',
+    height: 48,
     backgroundColor: '#7CC2E4',
-    borderRadius: 5,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginTop: 12,
   },
-  submitButtonText: {
-    fontFamily: 'Inter, sans-serif',
-    fontSize: 17,
-    color: 'rgba(255, 255, 255, 1)',
-    fontWeight: '400',
-    textAlign: 'center',
-    lineHeight: 20,
+  buttonDisabled: {
+    backgroundColor: '#ccc',
   },
-  submitButtonDisabled: {
-    opacity: 0.7,
+  buttonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '500',
   },
 });
 

@@ -6,7 +6,7 @@ interface ButtonProps {
   onPress: () => void;
 }
 
-export const Button: React.FC<ButtonProps> = ({ title, onPress }) => {
+const Button: React.FC<ButtonProps> = ({ title, onPress }) => {
   return (
     <TouchableOpacity style={styles.button} onPress={onPress}>
       <Text style={styles.text}>{title}</Text>
@@ -30,3 +30,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   }
 });
+
+export default Button;

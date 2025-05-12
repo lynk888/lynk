@@ -1,10 +1,10 @@
 import React from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import Svg, { Circle } from 'react-native-svg';
 
 interface DotMenuProps {}
 
-export const DotMenu: React.FC<DotMenuProps> = () => {
+const DotMenu: React.FC<DotMenuProps> = () => {
   return (
     <View style={styles.container}>
       <Svg width="37" height="5" viewBox="0 0 37 5">
@@ -23,3 +23,5 @@ const styles = StyleSheet.create({
     top: 94,
   },
 });
+
+export default DotMenu;

@@ -1,5 +1,8 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { signUpWithEmail } from '../../../servises/authService';
+import { useRouter } from 'expo-router';
+import { useAuth } from '../../../context/AuthContext';
 
 interface EmailFormProps {
   onSubmit: (email: string) => void;
@@ -7,29 +10,82 @@ interface EmailFormProps {
 
 const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
+  const { setEmail: setAuthEmail } = useAuth();
 
-  const handleSubmit = () => {
-    console.log('Email submitted:', email);
-    onSubmit?.(email);
+  const handleSubmit = async () => {
+    if (!email || !password) {
+      Alert.alert('Error', 'Please fill in all fields');
+      return;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Error', 'Password must be at least 6 characters long');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await signUpWithEmail(email, password);
+      if (result.success) {
+        setAuthEmail(email);
+        router.push('/(auth)/EmailVerification');
+      } else {
+        Alert.alert(
+          'Error',
+          result.error || 'Failed to create account. Please check your internet connection and try again.'
+        );
+      }
+    } catch (error) {
+      Alert.alert(
+        'Error',
+        'An unexpected error occurred. Please check your internet connection and try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <View style={styles.formContainer}>
-      <Text style={styles.title}>Your Email Address</Text>
-      <Text style={styles.subtitle}>Enter your email address to get started</Text>
+      <Text style={styles.title}>Create Your Account</Text>
+      <Text style={styles.subtitle}>Enter your email and password to get started</Text>
 
       <TextInput
         style={styles.input}
         value={email}
         onChangeText={setEmail}
-        placeholder="patekphilip12@gmail.com"
+        placeholder="Enter your email"
         keyboardType="email-address"
+        autoCapitalize="none"
         accessibilityLabel="Email input"
         placeholderTextColor="#888"
+        editable={!isLoading}
       />
 
-      <TouchableOpacity style={styles.button} onPress={() => handleSubmit()}>
-        <Text style={styles.buttonText}>Continue</Text>
+      <TextInput
+        style={styles.input}
+        value={password}
+        onChangeText={setPassword}
+        placeholder="Enter your password"
+        secureTextEntry
+        accessibilityLabel="Password input"
+        placeholderTextColor="#888"
+        editable={!isLoading}
+      />
+
+      <TouchableOpacity 
+        style={[styles.button, isLoading && styles.buttonDisabled]} 
+        onPress={handleSubmit}
+        disabled={isLoading}
+      >
+        {isLoading ? (
+          <ActivityIndicator color="#FFF" />
+        ) : (
+          <Text style={styles.buttonText}>Create Account</Text>
+        )}
       </TouchableOpacity>
     </View>
   );
@@ -65,7 +121,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     fontSize: 14,
     color: '#000',
-    marginBottom: 24,
+    marginBottom: 16,
   },
   button: {
     width: '100%',
@@ -75,6 +131,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
+  },
+  buttonDisabled: {
+    backgroundColor: '#ccc',
   },
   buttonText: {
     color: '#FFF',

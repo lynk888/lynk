@@ -1,28 +1,11 @@
-interface UserData {
-  email: string;
-  username: string;
-  createdAt: number;
-}
+import { supabase } from '../utils/supabase';
 
-export const DatabaseService = {
-  async createUserProfile(userId: string, userData: UserData) {
-    try {
-      // TODO: Implement Neon user profile creation
-      console.log('Creating user profile with Neon:', { userId, userData });
-    } catch (error) {
-      console.error('Error creating user profile:', error);
-      throw error;
-    }
-  },
+export class DatabaseService {
+  static async createUserProfile(userId: string, userData: { email: string; username: string; createdAt: number }) {
+    const { error } = await supabase
+      .from('profiles')
+      .insert([{ id: userId, ...userData }]);
 
-  async getUserProfile(userId: string) {
-    try {
-      // TODO: Implement Neon user profile fetch
-      console.log('Fetching user profile with Neon:', userId);
-      return null;
-    } catch (error) {
-      console.error('Error fetching user profile:', error);
-      throw error;
-    }
+    if (error) throw error;
   }
-};
+} 

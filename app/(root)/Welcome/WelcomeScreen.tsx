@@ -2,11 +2,10 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import ProgressDots from './ProgressDots';
-import { Button } from './Button';
+import Button from './Button';
 import StatusBar from './StatusBar';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../../types/index';
-export const WelcomeScreen: React.FC = () => {
+
+const WelcomeScreen: React.FC = () => {
   const router = useRouter();
 
   return (
@@ -26,11 +25,11 @@ export const WelcomeScreen: React.FC = () => {
           <Text style={styles.subtitle}>Let's get you started!</Text>
         </View>
 
-        <TouchableOpacity onPress={() => navigation.navigate('Terms')} accessibilityRole="link">
+        <TouchableOpacity onPress={() => router.push('/Terms')} accessibilityRole="link">
           <Text style={styles.termsLink}>Terms &amp; privacy policy</Text>
         </TouchableOpacity>
 
-        <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup')} />
+        <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup/EmailSignupScreen')} />
         <Button title="Login" onPress={() => router.push('/(auth)/Login')} />
       </View>
     </ScrollView>

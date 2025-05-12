@@ -4,13 +4,13 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { loginSchema } from '../../../utils/validation';
-import { APIService } from '../../../servises/api';
+import { loginUser } from '../../../servises/authService';
 import { useAuth } from '../../../context/AuthContext';
-import { LoginButton } from './LoginButton';
+import LoginButton from './LoginButton';
 import { Input } from '../../../components/Input';
 import { useUserStore } from '../../../store/useStore';
-import { StatusBar } from './StatusBar';
-import { DotMenu } from './DotMenu';
+import StatusBar from './StatusBar';
+import DotMenu from './DotMenu';
 
 interface LoginForm {
   email: string;
@@ -29,13 +29,13 @@ export default function LoginScreen() {
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
     try {
-      const result = await APIService.login(data.email, data.password);
-      if (result.success) {
+      const result = await loginUser(data.email, data.password);
+      if (result.success && result.token) {
         setEmail(data.email);
-        setToken(result.user.uid);
+        await setToken(result.token);
         router.replace('./(root)/Home');
       } else {
-        Alert.alert('Error', result.error);
+        Alert.alert('Error', result.error || 'Login failed');
       }
     } catch (error) {
       Alert.alert('Error', 'An unexpected error occurred');
