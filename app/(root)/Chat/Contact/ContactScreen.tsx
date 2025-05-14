@@ -1,7 +1,7 @@
 import React from 'react';
-import image1 from './assets/images/ahmed.png'
-import image2 from './assets/images/Olumide.png'
-import image3 from './assets/images/Rita.png'
+import image1 from '@/assets/images/ahmed.png'
+import image2 from '@/assets/images/Olumide.png'
+import image3 from '@/assets/images/Rita.png'
 import { ImageSourcePropType } from 'react-native';
 
 
