@@ -11,5 +11,5 @@
   "include": [
     "**/*.ts",
     "**/*.tsx"
-  ]
+, "app/(root)/Chat/Contact/ContactScreen.tsx"  ]
 }
