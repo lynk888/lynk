@@ -52,7 +52,13 @@ const ContactsScreen = () => {
   const router = useRouter();
 
   const renderContact = ({ item }: { item: Contact }) => (
-    <TouchableOpacity style={styles.contactItem}>
+    <TouchableOpacity 
+      style={styles.contactItem}
+      onPress={() => router.push({
+        pathname: '/(root)/Chat/ContactInfo/ContactInfo',
+        params: { contactId: item.id, name: item.name }
+      })}
+    >
       <View style={styles.contactInfo}>
         <Image
           source={typeof item.avatar === 'string' ? { uri: item.avatar } : item.avatar}

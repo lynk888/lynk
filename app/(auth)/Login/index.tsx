@@ -33,7 +33,7 @@ export default function LoginScreen() {
       if (result.success && result.token) {
         setEmail(data.email);
         await setToken(result.token);
-        router.replace('./(root)/Home');
+        router.replace('/(root)/Chat/ChatScreen');
       } else {
         Alert.alert('Error', result.error || 'Login failed');
       }

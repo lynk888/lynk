@@ -8,19 +8,24 @@ import {
   TouchableOpacity,
 } from "react-native";
 import { Camera, Phone, Plus, Settings, Users } from "lucide-react-native";
+import { useRouter } from 'expo-router';
 
 function MyComponent() {
+  const router = useRouter();
+  
   // Navigation data for the bottom tabs
   const navigationItems = [
     {
       name: "Contacts",
       icon: <Users size={24} color="#0000004c" />,
       active: false,
+      route: "/(root)/Chat/Contact/ContactScreen"
     },
     {
       name: "Calls",
       icon: <Phone size={24} color="#0000004c" />,
       active: false,
+      route: "/(root)/Calls/CallsScreen"
     },
     {
       name: "Chats",
@@ -33,12 +38,14 @@ function MyComponent() {
         </View>
       ),
       active: true,
+      route: "/(root)/Chat/ChatScreen"
     },
     {
       name: "Settings",
       icon: <Settings size={24} color="#0000004c" />,
       active: false,
-    },
+      route: "/(root)/Settings/SettingsScreen"
+    }
   ];
 
   return (
@@ -84,9 +91,10 @@ function MyComponent() {
       <View style={styles.bottomNav}>
         <View style={styles.bottomNavContent}>
           {navigationItems.map((item, index) => (
-            <View
+            <TouchableOpacity
               key={index}
               style={styles.navItem}
+              onPress={() => router.push(item.route)}
             >
               <View style={styles.iconContainer}>
                 {item.icon}
@@ -94,7 +102,7 @@ function MyComponent() {
               <Text style={[styles.navText, item.active && styles.activeText]}>
                 {item.name}
               </Text>
-            </View>
+            </TouchableOpacity>
           ))}
         </View>
       </View>

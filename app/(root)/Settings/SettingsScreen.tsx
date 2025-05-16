@@ -55,10 +55,23 @@ const SettingsScreen = () => {
       </TouchableOpacity>
 
       {/* Settings Options */}
-      <View style={styles.settingsSection}>
+      <View style={styles.settingsOptions}>
         <TouchableOpacity 
           style={styles.settingsItem}
-          onPress={() => router.push('/(root)/Settings/Privacy')}
+          onPress={() => router.push('/(root)/Settings/NotificationsScreen')}
+        >
+          <View style={styles.settingsItemLeft}>
+            <View style={[styles.iconContainer, { backgroundColor: '#4CD964' }]}>
+              <Ionicons name="notifications" size={20} color="#FFFFFF" />
+            </View>
+            <Text style={styles.settingsItemText}>Notifications</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={styles.settingsItem}
+          onPress={() => router.push('/(root)/Settings/PrivacyScreen')}
         >
           <View style={styles.settingsItemLeft}>
             <View style={styles.iconContainer}>
@@ -67,29 +80,6 @@ const SettingsScreen = () => {
             <Text style={styles.settingsItemText}>Privacy and Security</Text>
           </View>
           <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        </TouchableOpacity>
-
-        <TouchableOpacity 
-          style={styles.settingsItem}
-          onPress={() => router.push('/(root)/Settings/Help')}
-        >
-          <View style={styles.settingsItemLeft}>
-            <View style={[styles.iconContainer, { backgroundColor: '#007AFF' }]}>
-              <Ionicons name="information" size={20} color="#FFFFFF" />
-            </View>
-            <Text style={styles.settingsItemText}>Help</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-        </TouchableOpacity>
-
-        <TouchableOpacity style={styles.settingsItem}>
-          <View style={styles.settingsItemLeft}>
-            <Text style={styles.settingsItemText}>Notifications</Text>
-          </View>
-          <View style={styles.settingsItemRight}>
-            <Text style={styles.enabledText}>Enabled</Text>
-            <Ionicons name="chevron-forward" size={20} color="#C7C7CC" />
-          </View>
         </TouchableOpacity>
       </View>
 
@@ -222,7 +212,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#8E8E93',
   },
-  settingsSection: {
+  settingsOptions: {
     marginTop: 20,
   },
   settingsItem: {
@@ -238,10 +228,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
   },
-  settingsItemRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   iconContainer: {
     width: 32,
     height: 32,
@@ -253,11 +239,6 @@ const styles = StyleSheet.create({
   },
   settingsItemText: {
     fontSize: 16,
-  },
-  enabledText: {
-    fontSize: 16,
-    color: '#007AFF',
-    marginRight: 8,
   },
   dangerZone: {
     marginTop: 'auto',
@@ -365,3 +346,4 @@ const styles = StyleSheet.create({
 });
 
 export default SettingsScreen;
+
