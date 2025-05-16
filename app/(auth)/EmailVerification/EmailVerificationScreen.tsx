@@ -40,7 +40,7 @@ export default function EmailVerificationScreen() {
         
         if (session?.access_token) {
           await setToken(session.access_token);
-          router.replace('/(root)/Home/HomeScreen');
+          router.replace('/(root)/Chat/ChatScreen');
         } else {
           throw new Error('No session found after verification');
         }

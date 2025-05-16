@@ -10,19 +10,25 @@ interface EmailFormProps {
 
 const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
   const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { setEmail: setAuthEmail } = useAuth();
 
   const handleSubmit = async () => {
-    if (!email || !password) {
+    if (!email || !password || !username) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
 
-    if (password.length < 6) {
-      Alert.alert('Error', 'Password must be at least 6 characters long');
+    if (password.length < 9) {
+      Alert.alert('Error', 'Password must be at least 9 characters long');
+      return;
+    }
+
+    if (username.length < 9) {
+      Alert.alert('Error', 'Username must be at least 9 characters long');
       return;
     }
 
@@ -51,7 +57,18 @@ const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
   return (
     <View style={styles.formContainer}>
       <Text style={styles.title}>Create Your Account</Text>
-      <Text style={styles.subtitle}>Enter your email and password to get started</Text>
+      <Text style={styles.subtitle}>Enter your details to get started</Text>
+
+      <TextInput
+        style={styles.input}
+        value={username}
+        onChangeText={setUsername}
+        placeholder="Choose a username"
+        autoCapitalize="none"
+        accessibilityLabel="Username input"
+        placeholderTextColor="#888"
+        editable={!isLoading}
+      />
 
       <TextInput
         style={styles.input}

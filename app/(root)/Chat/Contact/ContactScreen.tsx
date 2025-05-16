@@ -1,10 +1,4 @@
 import React from 'react';
-import image1 from '@/assets/images/ahmed.png'
-import image2 from '@/assets/images/Olumide.png'
-import image3 from '@/assets/images/Rita.png'
-import { ImageSourcePropType } from 'react-native';
-
-
 import {
   View,
   Text,
@@ -13,6 +7,7 @@ import {
   Image,
   SafeAreaView,
   FlatList,
+  ImageSourcePropType
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
@@ -21,7 +16,7 @@ interface Contact {
   id: string;
   name: string;
   status: string;
-  avatar: string | { uri: string }; // Support both string URLs and objects with a uri property
+  avatar: ImageSourcePropType;
 }
 
 const contacts: Contact[] = [
@@ -29,22 +24,19 @@ const contacts: Contact[] = [
     id: '1',
     name: 'Ahmed',
     status: 'online',
-    avatar: image1
+    avatar: { uri: 'https://ui-avatars.com/api/?name=Ahmed&background=random' }
   },
   {
     id: '2',
     name: 'Olumide',
     status: 'online',
-    avatar: image2
+    avatar: { uri: 'https://ui-avatars.com/api/?name=Olumide&background=random' }
   },
   {
     id: '3',
     name: 'Rita',
     status: 'online',
-    avatar: image3
-    
-    
-
+    avatar: { uri: 'https://ui-avatars.com/api/?name=Rita&background=random' }
   },
 ];
 
@@ -54,14 +46,21 @@ const ContactsScreen = () => {
   const renderContact = ({ item }: { item: Contact }) => (
     <TouchableOpacity 
       style={styles.contactItem}
-      onPress={() => router.push({
-        pathname: '/(root)/Chat/ContactInfo/ContactInfo',
-        params: { contactId: item.id, name: item.name }
-      })}
+      onPress={() => {
+        router.push({
+          pathname: '/(root)/Chat/ChatScreen2',
+          params: {
+            contactId: item.id,
+            name: item.name,
+            status: item.status,
+            avatarUri: item.avatar.uri
+          }
+        });
+      }}
     >
       <View style={styles.contactInfo}>
         <Image
-          source={typeof item.avatar === 'string' ? { uri: item.avatar } : item.avatar}
+          source={item.avatar}
           style={styles.avatar}
         />
         <View>
