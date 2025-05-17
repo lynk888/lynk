@@ -15,12 +15,14 @@ import { useAuth } from '../../../context/AuthContext';
 
 const SettingsScreen = () => {
   const router = useRouter();
-  const { signOut } = useAuth();
+  const { logout } = useAuth();
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const handleLogout = async () => {
-    await signOut();
-    router.replace('/(auth)');
+    setShowLogoutModal(false);
+    await logout();
+    router.replace('/');
   };
 
   const handleDeleteAccount = () => {
@@ -121,8 +123,42 @@ const SettingsScreen = () => {
         </View>
       </Modal>
 
+      {/* Logout Modal */}
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={showLogoutModal}
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Logout</Text>
+            <Text style={styles.modalText}>
+              Are you sure you want to logout?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.deleteButton]}
+                onPress={handleLogout}
+              >
+                <Text style={[styles.deleteButtonText]}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       {/* Logout Button */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <TouchableOpacity 
+        style={styles.logoutButton} 
+        onPress={() => setShowLogoutModal(true)}
+      >
         <Text style={styles.logoutText}>Log Out</Text>
       </TouchableOpacity>
 

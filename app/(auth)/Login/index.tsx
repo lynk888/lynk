@@ -1,11 +1,12 @@
 import React from 'react';
-import { View, StyleSheet, Alert } from 'react-native';
+import { View, StyleSheet, Alert, TouchableOpacity, Text } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { loginSchema } from '../../../utils/validation';
 import { loginUser } from '../../../servises/authService';
 import { useAuth } from '../../../context/AuthContext';
+import { supabase } from '../../../utils/supabase';
 import LoginButton from './LoginButton';
 import { Input } from '../../../components/Input';
 import { useUserStore } from '../../../store/useStore';
@@ -22,9 +23,37 @@ export default function LoginScreen() {
   const { setToken, setEmail } = useAuth();
   const setIsLoading = useUserStore((state) => state.setIsLoading);
 
-  const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+  const { control, handleSubmit, formState: { errors }, watch } = useForm<LoginForm>({
     resolver: yupResolver(loginSchema),
   });
+
+  const handleForgotPassword = async () => {
+    const email = watch('email');
+    if (!email) {
+      Alert.alert('Error', 'Please enter your email address first');
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: 'lynk://reset-password',
+      });
+
+      if (error) {
+        Alert.alert('Error', error.message);
+      } else {
+        Alert.alert(
+          'Password Reset Email Sent',
+          'Please check your email for password reset instructions.'
+        );
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to send password reset email');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
@@ -74,6 +103,13 @@ export default function LoginScreen() {
       />
 
       <LoginButton onPress={handleSubmit(onSubmit)} />
+      
+      <TouchableOpacity 
+        style={styles.forgotPasswordButton} 
+        onPress={handleForgotPassword}
+      >
+        <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -83,5 +119,13 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     justifyContent: 'center',
+  },
+  forgotPasswordButton: {
+    marginTop: 15,
+    alignItems: 'center',
+  },
+  forgotPasswordText: {
+    color: '#007AFF',
+    fontSize: 14,
   },
 });

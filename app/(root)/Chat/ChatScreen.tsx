@@ -82,7 +82,10 @@ function MyComponent() {
             style={styles.image3 as ImageStyle}
           />
         </View>
-        <TouchableOpacity style={styles.view7} >
+        <TouchableOpacity 
+          style={styles.view7} 
+          onPress={() => router.push('/(root)/Chat/Contact/ContactScreen')}
+        >
           <Text>Start messaging</Text>
         </TouchableOpacity>
       </View>
