@@ -10,7 +10,7 @@ import {
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 interface Message {
@@ -22,27 +22,79 @@ interface Message {
 
 const ChatScreen2 = () => {
   const router = useRouter();
-  
-  // Empty messages array for new chat
-  const messages: Message[] = [];
+  const params = useLocalSearchParams();
+  const { name, avatarUri } = params;
+  const [isTyping, setIsTyping] = React.useState(false);
+  const [messageText, setMessageText] = React.useState('');
+  const [chatMessages, setChatMessages] = React.useState<Message[]>([]);
+
+  // Simulate typing indicator after a short delay
+  React.useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsTyping(true);
+
+      // Hide typing indicator after 3 seconds
+      const hideTimer = setTimeout(() => {
+        setIsTyping(false);
+      }, 3000);
+
+      return () => clearTimeout(hideTimer);
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Function to handle sending a message
+  const handleSendMessage = () => {
+    if (messageText.trim() === '') return;
+
+    const newMessage: Message = {
+      id: Date.now().toString(),
+      text: messageText,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      isSent: true
+    };
+
+    setChatMessages(prevMessages => [...prevMessages, newMessage]);
+    setMessageText('');
+
+    // Simulate a reply after 2 seconds
+    setTimeout(() => {
+      setIsTyping(true);
+
+      setTimeout(() => {
+        setIsTyping(false);
+
+        const replyMessage: Message = {
+          id: (Date.now() + 1).toString(),
+          text: `Hi there! This is an automated reply from ${name}.`,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          isSent: false
+        };
+
+        setChatMessages(prevMessages => [...prevMessages, replyMessage]);
+      }, 2000);
+    }, 1000);
+  };
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.backButton}
-          onPress={() => router.back()}
+          onPress={() => router.push('/(root)/Chat/Contact/ContactScreen')}
         >
           <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          <Text style={styles.backText}>Contacts</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.headerProfile}>
           <Image
-            source={{ uri: 'https://via.placeholder.com/40' }}
+            source={{ uri: avatarUri ? String(avatarUri) : 'https://via.placeholder.com/40' }}
             style={styles.profileImage}
           />
-          <Text style={styles.headerName}>Ahmed</Text>
+          <Text style={styles.headerName}>{name ? String(name) : 'Chat'}</Text>
         </View>
 
         <View style={styles.headerRight}>
@@ -57,13 +109,13 @@ const ChatScreen2 = () => {
 
       {/* Chat Messages */}
       <View style={styles.messagesContainer}>
-        {messages.length === 0 ? (
+        {chatMessages.length === 0 ? (
           <View style={styles.emptyChat}>
-            <Text style={styles.emptyChatText}>No messages yet</Text>
-            <Text style={styles.emptyChatSubtext}>Start a conversation!</Text>
+            <Text style={styles.emptyChatText}>No messages yet with {name ? String(name) : 'this contact'}</Text>
+            <Text style={styles.emptyChatSubtext}>Send a message to start a conversation!</Text>
           </View>
         ) : (
-          messages.map((message) => (
+          chatMessages.map((message) => (
             <View
               key={message.id}
               style={[
@@ -97,6 +149,18 @@ const ChatScreen2 = () => {
             </View>
           ))
         )}
+
+        {/* Typing indicator */}
+        {isTyping && (
+          <View style={styles.typingContainer}>
+            <View style={styles.typingBubble}>
+              <View style={styles.typingDot} />
+              <View style={[styles.typingDot, styles.typingDotMiddle]} />
+              <View style={styles.typingDot} />
+            </View>
+            <Text style={styles.typingText}>{name ? String(name) : 'Contact'} is typing...</Text>
+          </View>
+        )}
       </View>
 
       {/* Input Area */}
@@ -107,15 +171,26 @@ const ChatScreen2 = () => {
         <TouchableOpacity style={styles.attachButton}>
           <Ionicons name="attach" size={24} color="#8E8E93" />
         </TouchableOpacity>
-        
+
         <TextInput
           style={styles.input}
-          placeholder="Message"
+          placeholder={`Message ${name ? String(name) : ''}`}
           placeholderTextColor="#8E8E93"
+          value={messageText}
+          onChangeText={setMessageText}
+          onSubmitEditing={handleSendMessage}
+          returnKeyType="send"
         />
-        
-        <TouchableOpacity style={styles.micButton}>
-          <Ionicons name="mic" size={24} color="#8E8E93" />
+
+        <TouchableOpacity
+          style={styles.sendButton}
+          onPress={handleSendMessage}
+        >
+          <Ionicons
+            name={messageText.trim() ? "send" : "mic"}
+            size={24}
+            color="#007AFF"
+          />
         </TouchableOpacity>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -137,6 +212,13 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 4,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  backText: {
+    fontSize: 16,
+    color: '#007AFF',
+    marginLeft: 4,
   },
   headerProfile: {
     flex: 1,
@@ -246,8 +328,36 @@ const styles = StyleSheet.create({
     marginHorizontal: 8,
     fontSize: 16,
   },
-  micButton: {
+  sendButton: {
     padding: 8,
+  },
+  typingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  typingBubble: {
+    flexDirection: 'row',
+    backgroundColor: '#E8E8EA',
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    alignItems: 'center',
+  },
+  typingDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#8E8E93',
+    marginHorizontal: 2,
+  },
+  typingDotMiddle: {
+    opacity: 0.7,
+  },
+  typingText: {
+    fontSize: 12,
+    color: '#8E8E93',
   },
 });
 
