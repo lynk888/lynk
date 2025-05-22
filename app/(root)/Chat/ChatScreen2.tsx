@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Message {
   id: string;
@@ -20,13 +21,48 @@ interface Message {
   isSent: boolean;
 }
 
+// Define a type for our contact data
+interface ContactData {
+  [key: string]: {
+    name: string;
+  };
+}
+
 const ChatScreen2 = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { name, avatarUri } = params;
+  const { contactId } = params;
+
+  // Initialize with params, but will be updated from AsyncStorage if available
+  const [contactName, setContactName] = React.useState<string>(params.name ? String(params.name) : '');
+  const [avatarUri, setAvatarUri] = React.useState<string>(params.avatarUri ? String(params.avatarUri) : '');
+
   const [isTyping, setIsTyping] = React.useState(false);
   const [messageText, setMessageText] = React.useState('');
   const [chatMessages, setChatMessages] = React.useState<Message[]>([]);
+
+  // Load contact data from AsyncStorage
+  useEffect(() => {
+    const loadContactData = async () => {
+      try {
+        const contactsJson = await AsyncStorage.getItem('contacts');
+        if (contactsJson && contactId) {
+          const contacts: ContactData = JSON.parse(contactsJson);
+          const contact = contacts[String(contactId)];
+
+          if (contact && contact.name) {
+            setContactName(contact.name);
+            // Update avatar URI based on the new name
+            setAvatarUri(`https://ui-avatars.com/api/?name=${contact.name}&background=random`);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading contact data:', error);
+      }
+    };
+
+    loadContactData();
+  }, [contactId, params._timestamp]); // Re-run when contactId or timestamp changes
 
   // Simulate typing indicator after a short delay
   React.useEffect(() => {
@@ -67,7 +103,7 @@ const ChatScreen2 = () => {
 
         const replyMessage: Message = {
           id: (Date.now() + 1).toString(),
-          text: `Hi there! This is an automated reply from ${name}.`,
+          text: `Hi there! This is an automated reply from ${contactName}.`,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           isSent: false
         };
@@ -94,14 +130,20 @@ const ChatScreen2 = () => {
             source={{ uri: avatarUri ? String(avatarUri) : 'https://via.placeholder.com/40' }}
             style={styles.profileImage}
           />
-          <Text style={styles.headerName}>{name ? String(name) : 'Chat'}</Text>
+          <Text style={styles.headerName}>{contactName || 'Chat'}</Text>
         </View>
 
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.callButton}>
             <Ionicons name="call" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.menuButton}>
+          <TouchableOpacity
+            style={styles.menuButton}
+            onPress={() => router.push({
+              pathname: '/(root)/Chat/ContactInfo/ContactInfo',
+              params: { contactName: contactName, contactId: contactId }
+            })}
+          >
             <Ionicons name="ellipsis-horizontal" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>
@@ -111,7 +153,7 @@ const ChatScreen2 = () => {
       <View style={styles.messagesContainer}>
         {chatMessages.length === 0 ? (
           <View style={styles.emptyChat}>
-            <Text style={styles.emptyChatText}>No messages yet with {name ? String(name) : 'this contact'}</Text>
+            <Text style={styles.emptyChatText}>No messages yet with {contactName || 'this contact'}</Text>
             <Text style={styles.emptyChatSubtext}>Send a message to start a conversation!</Text>
           </View>
         ) : (
@@ -158,7 +200,7 @@ const ChatScreen2 = () => {
               <View style={[styles.typingDot, styles.typingDotMiddle]} />
               <View style={styles.typingDot} />
             </View>
-            <Text style={styles.typingText}>{name ? String(name) : 'Contact'} is typing...</Text>
+            <Text style={styles.typingText}>{contactName || 'Contact'} is typing...</Text>
           </View>
         )}
       </View>
@@ -174,7 +216,7 @@ const ChatScreen2 = () => {
 
         <TextInput
           style={styles.input}
-          placeholder={`Message ${name ? String(name) : ''}`}
+          placeholder={`Message ${contactName || ''}`}
           placeholderTextColor="#8E8E93"
           value={messageText}
           onChangeText={setMessageText}
