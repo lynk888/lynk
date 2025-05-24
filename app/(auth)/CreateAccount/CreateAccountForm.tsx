@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, Text, TextInput, TouchableOpacity, Image, Alert, ActivityIndicator } from 'react-native';
+import { View, StyleSheet, Text, TextInput, TouchableOpacity, Alert, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
 import { supabase } from '../../../utils/supabase';
@@ -40,8 +40,31 @@ const CreateAccountForm: React.FC = () => {
       if (signUpError) throw signUpError;
 
       if (signUpData.session?.access_token) {
+        // Create a profile record manually as a fallback
+        try {
+          if (signUpData.user) {
+            const { error: profileError } = await supabase
+              .from('profiles')
+              .upsert({
+                id: signUpData.user.id,
+                email: email!,
+                username: username,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              }, { onConflict: 'id' });
+
+            if (profileError) {
+              console.log('Profile creation fallback error:', profileError);
+              // Continue anyway, as the trigger should handle this
+            }
+          }
+        } catch (profileErr) {
+          console.log('Profile creation attempt error:', profileErr);
+          // Continue anyway, as this is just a fallback
+        }
+
         await setToken(signUpData.session.access_token);
-        router.replace('/(root)/Home/HomeScreen');
+        router.replace('/(root)/Chat/ChatScreen');
       } else {
         throw new Error('No session found after sign up');
       }

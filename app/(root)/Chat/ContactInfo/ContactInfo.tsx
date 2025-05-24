@@ -8,50 +8,62 @@ import {
   SafeAreaView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Define a type for our contact data
-interface ContactData {
-  [key: string]: {
-    name: string;
-  };
-}
+import { useContacts } from '../../../../hooks/useContacts';
+import { Contact } from '../../../../services/contactService';
 
 const ContactInfo = () => {
   const router = useRouter();
-  const navigation = useNavigation();
   const params = useLocalSearchParams();
-  const { contactName, contactId } = params;
+  const { contactName, contactId, conversationId } = params;
 
+  const { contacts, loading, error, updateContactName } = useContacts();
   const [name, setName] = useState(contactName ? String(contactName) : '');
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [contact, setContact] = useState<Contact | null>(null);
 
-  // Save contact name to AsyncStorage
+  // Find the contact in the contacts list
+  useEffect(() => {
+    if (contacts && contactId) {
+      const foundContact = contacts.find(c => c.contact_id === contactId);
+      if (foundContact) {
+        setContact(foundContact);
+        setName(foundContact.display_name);
+      }
+    }
+  }, [contacts, contactId]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
+  }, [error]);
+
+  // Save contact name to database
   const saveContactName = async () => {
+    if (!contactId) {
+      Alert.alert('Error', 'Contact ID is missing');
+      return;
+    }
+
     try {
-      // Get existing contacts or initialize empty object
-      const contactsJson = await AsyncStorage.getItem('contacts');
-      const contacts: ContactData = contactsJson ? JSON.parse(contactsJson) : {};
+      setIsSaving(true);
 
-      // Update the contact with new name
-      contacts[String(contactId)] = {
-        name: name
-      };
-
-      // Save back to AsyncStorage
-      await AsyncStorage.setItem('contacts', JSON.stringify(contacts));
+      // Update contact name in database
+      await updateContactName(String(contactId), name);
 
       // Navigate back to chat screen with updated name
       router.push({
         pathname: '/(root)/Chat/ChatScreen2',
         params: {
+          conversationId: conversationId,
           contactId: contactId,
           name: name,
-          // Preserve other params that might have been passed
-          ...params,
           // Force refresh by adding timestamp
           _timestamp: Date.now()
         }
@@ -59,89 +71,177 @@ const ContactInfo = () => {
     } catch (error) {
       Alert.alert('Error', 'Failed to save contact name');
       console.error(error);
+    } finally {
+      setIsSaving(false);
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
-          <Text style={styles.backText}>Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Contact info</Text>
-
-        {isEditing ? (
-          <TouchableOpacity
-            style={styles.saveButton}
-            onPress={() => {
-              setIsEditing(false);
-              saveContactName();
-            }}
-          >
-            <Text style={styles.saveText}>Save</Text>
-          </TouchableOpacity>
-        ) : (
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => setIsEditing(true)}
-          >
-            <Text style={styles.editText}>Edit</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Profile Section */}
-      <View style={styles.profileSection}>
-        <Image
-          source={{ uri: `https://ui-avatars.com/api/?name=${name}&background=random` }}
-          style={styles.profileImage}
-        />
-
-        {isEditing ? (
-          <TextInput
-            style={styles.nameInput}
-            value={name}
-            onChangeText={setName}
-            placeholder="Contact Name"
-            autoFocus
-          />
-        ) : (
-          <Text style={styles.name}>{name}</Text>
-        )}
-      </View>
-
-      {/* Info Section */}
-      <View style={styles.infoSection}>
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>bio</Text>
-          <Text style={styles.infoText}>Design adds value faster, than it adds cost</Text>
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
         </View>
+      ) : (
+        <>
+          {/* Header */}
+          <View style={styles.header}>
+            <TouchableOpacity
+              style={styles.backButton}
+              onPress={() => router.back()}
+            >
+              <Ionicons name="chevron-back" size={24} color="#007AFF" />
+              <Text style={styles.backText}>Back</Text>
+            </TouchableOpacity>
+            <Text style={styles.headerTitle}>Contact info</Text>
 
-        <View style={styles.infoItem}>
-          <Text style={styles.infoLabel}>username</Text>
-          <Text style={styles.infoText}>@zack_life</Text>
-        </View>
-      </View>
+            {isEditing ? (
+              <TouchableOpacity
+                style={styles.saveButton}
+                onPress={() => {
+                  setIsEditing(false);
+                  saveContactName();
+                }}
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.saveText}>Save</Text>
+                )}
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.editButton}
+                onPress={() => setIsEditing(true)}
+              >
+                <Text style={styles.editText}>Edit</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-      {/* Actions Section */}
-      <View style={styles.actionsSection}>
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionTextBlue}>Archive Chats</Text>
-        </TouchableOpacity>
+          {/* Profile Section */}
+          <View style={styles.profileSection}>
+            <Image
+              source={{
+                uri: contact?.profile?.avatar_url ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=random`
+              }}
+              style={styles.profileImage}
+            />
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionTextRed}>Clear All Chats</Text>
-        </TouchableOpacity>
+            {isEditing ? (
+              <TextInput
+                style={styles.nameInput}
+                value={name}
+                onChangeText={setName}
+                placeholder="Contact Name"
+                autoFocus
+              />
+            ) : (
+              <Text style={styles.name}>{name}</Text>
+            )}
 
-        <TouchableOpacity style={styles.actionButton}>
-          <Text style={styles.actionTextRed}>Delete Contact</Text>
-        </TouchableOpacity>
-      </View>
+            {contact?.profile?.email && (
+              <Text style={styles.email}>{contact.profile.email}</Text>
+            )}
+          </View>
+        </>
+      )}
+
+      {!loading && (
+        <>
+          {/* Info Section */}
+          {contact?.profile && (
+            <View style={styles.infoSection}>
+              {contact.profile.username && (
+                <View style={styles.infoItem}>
+                  <Text style={styles.infoLabel}>username</Text>
+                  <Text style={styles.infoText}>@{contact.profile.username}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Actions Section */}
+          <View style={styles.actionsSection}>
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                Alert.alert(
+                  'Archive Chats',
+                  'Are you sure you want to archive all chats with this contact?',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Archive',
+                      style: 'destructive',
+                      onPress: () => {
+                        // TODO: Implement archive chats functionality
+                        Alert.alert('Success', 'Chats archived successfully');
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.actionTextBlue}>Archive Chats</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                Alert.alert(
+                  'Clear All Chats',
+                  'Are you sure you want to clear all chats with this contact? This action cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Clear',
+                      style: 'destructive',
+                      onPress: () => {
+                        // TODO: Implement clear chats functionality
+                        Alert.alert('Success', 'Chats cleared successfully');
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.actionTextRed}>Clear All Chats</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.actionButton}
+              onPress={() => {
+                Alert.alert(
+                  'Delete Contact',
+                  'Are you sure you want to delete this contact? This action cannot be undone.',
+                  [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete',
+                      style: 'destructive',
+                      onPress: async () => {
+                        try {
+                          // TODO: Implement delete contact functionality
+                          router.replace('/(root)/Chat/Contact/ContactScreen');
+                          Alert.alert('Success', 'Contact deleted successfully');
+                        } catch (error) {
+                          Alert.alert('Error', 'Failed to delete contact');
+                          console.error(error);
+                        }
+                      }
+                    }
+                  ]
+                );
+              }}
+            >
+              <Text style={styles.actionTextRed}>Delete Contact</Text>
+            </TouchableOpacity>
+          </View>
+        </>
+      )}
     </SafeAreaView>
   );
 };
@@ -150,6 +250,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#FFFFFF',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   header: {
     flexDirection: 'row',
@@ -190,6 +295,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 16,
     zIndex: 1,
+    minWidth: 50,
+    alignItems: 'center',
   },
   saveText: {
     fontSize: 17,
@@ -210,6 +317,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '600',
     color: '#000000',
+  },
+  email: {
+    fontSize: 16,
+    color: '#8E8E93',
+    marginTop: 4,
   },
   nameInput: {
     fontSize: 24,
@@ -261,8 +373,3 @@ const styles = StyleSheet.create({
 });
 
 export default ContactInfo;
-
-
-
-
-

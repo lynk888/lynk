@@ -4,6 +4,7 @@ import { SplashScreen } from 'expo-router';
 import { useEffect } from 'react';
 import { AuthProvider } from '../context/AuthContext';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 export default function RootLayout() {
   const [loaded] = useFonts({
@@ -15,6 +16,9 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [loaded]);
+
+  // Initialize online status
+  useOnlineStatus();
 
   if (!loaded) {
     return null;

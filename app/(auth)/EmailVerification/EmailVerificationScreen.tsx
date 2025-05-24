@@ -35,9 +35,30 @@ export default function EmailVerificationScreen() {
 
         if (updateError) throw updateError;
 
+        // Ensure profile exists
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: data.user.id,
+              email: email!,
+              username: data.user.user_metadata.username || email!.split('@')[0],
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+
+          if (profileError) {
+            console.log('Profile creation error after verification:', profileError);
+            // Continue anyway
+          }
+        } catch (profileErr) {
+          console.log('Profile creation attempt error:', profileErr);
+          // Continue anyway
+        }
+
         // Get the session after verification
         const { data: { session } } = await supabase.auth.getSession();
-        
+
         if (session?.access_token) {
           await setToken(session.access_token);
           router.replace('/(root)/Chat/ChatScreen');

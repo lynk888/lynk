@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,65 +7,82 @@ import {
   Image,
   SafeAreaView,
   FlatList,
-  ImageSourcePropType
+  ActivityIndicator,
+  Alert
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-interface Contact {
-  id: string;
-  name: string;
-  status: string;
-  avatar: ImageSourcePropType;
-}
-
-const contacts: Contact[] = [
-  {
-    id: '1',
-    name: 'Ahmed',
-    status: 'online',
-    avatar: { uri: 'https://ui-avatars.com/api/?name=Ahmed&background=random' }
-  },
-  {
-    id: '2',
-    name: 'Olumide',
-    status: 'online',
-    avatar: { uri: 'https://ui-avatars.com/api/?name=Olumide&background=random' }
-  },
-  {
-    id: '3',
-    name: 'Rita',
-    status: 'online',
-    avatar: { uri: 'https://ui-avatars.com/api/?name=Rita&background=random' }
-  },
-];
+import { useContacts } from '../../../../hooks/useContacts';
+import { useConversations } from '../../../../hooks/useConversations';
+import { Contact } from '../../../../services/contactService';
 
 const ContactsScreen = () => {
   const router = useRouter();
+  const { contacts, loading, error, refreshContacts, migrateContacts } = useContacts();
+  const { findOrCreateOneToOneConversation } = useConversations();
+  const [migrated, setMigrated] = useState(false);
 
-  const renderContact = ({ item }: { item: Contact }) => (
-    <TouchableOpacity 
-      style={styles.contactItem}
-      onPress={() => {
+  // Migrate contacts from AsyncStorage to Supabase on first load
+  useEffect(() => {
+    if (!migrated) {
+      migrateContacts();
+      setMigrated(true);
+    }
+  }, [migrateContacts, migrated]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
+  }, [error]);
+
+  // Handle contact press - find or create conversation and navigate to chat
+  const handleContactPress = async (contact: Contact) => {
+    try {
+      // Show loading indicator
+      // You could implement a loading state here
+
+      // Find or create a conversation with this contact
+      const conversation = await findOrCreateOneToOneConversation(contact.contact_id);
+
+      if (conversation) {
+        // Navigate to chat screen with conversation ID
         router.push({
           pathname: '/(root)/Chat/ChatScreen2',
           params: {
-            contactId: item.id,
-            name: item.name,
-            status: item.status,
-            avatarUri: item.avatar.uri
+            conversationId: conversation.id,
+            contactId: contact.contact_id,
+            name: contact.display_name,
+            avatarUri: contact.profile?.avatar_url ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(contact.display_name)}&background=random`
           }
         });
-      }}
+      }
+    } catch (err) {
+      Alert.alert('Error', 'Failed to open chat. Please try again.');
+      console.error(err);
+    }
+  };
+
+  const renderContact = ({ item }: { item: Contact }) => (
+    <TouchableOpacity
+      style={styles.contactItem}
+      onPress={() => handleContactPress(item)}
     >
       <View style={styles.contactInfo}>
         <Image
-          source={item.avatar}
+          source={{
+            uri: item.profile?.avatar_url ||
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(item.display_name)}&background=random`
+          }}
           style={styles.avatar}
         />
         <View>
-          <Text style={styles.contactName}>{item.name}</Text>
-          <Text style={styles.statusText}>{item.status}</Text>
+          <Text style={styles.contactName}>{item.display_name}</Text>
+          <Text style={styles.statusText}>
+            {item.profile?.email || 'Contact'}
+          </Text>
         </View>
       </View>
       <View style={styles.onlineIndicator} />
@@ -76,17 +93,34 @@ const ContactsScreen = () => {
     <SafeAreaView style={styles.container}>
       <Text style={styles.header}>Contacts</Text>
 
-      <TouchableOpacity style={styles.addFriendsButton}>
+      <TouchableOpacity
+        style={styles.addFriendsButton}
+        onPress={() => router.push('/(root)/Chat/Contact/AddContactScreen')}
+      >
         <Ionicons name="person-add-outline" size={24} color="#000" />
         <Text style={styles.addFriendsText}>Add Friends</Text>
       </TouchableOpacity>
 
-      <FlatList
-        data={contacts}
-        renderItem={renderContact}
-        keyExtractor={(item) => item.id}
-        style={styles.contactsList}
-      />
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#007AFF" />
+        </View>
+      ) : contacts.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="people-outline" size={64} color="#8E8E93" />
+          <Text style={styles.emptyText}>No contacts yet</Text>
+          <Text style={styles.emptySubtext}>Add friends to start chatting</Text>
+        </View>
+      ) : (
+        <FlatList
+          data={contacts}
+          renderItem={renderContact}
+          keyExtractor={(item) => item.id}
+          style={styles.contactsList}
+          refreshing={loading}
+          onRefresh={refreshContacts}
+        />
+      )}
 
       {/* Bottom Navigation */}
       <View style={styles.bottomNav}>
@@ -185,6 +219,29 @@ const styles = StyleSheet.create({
     height: 10,
     borderRadius: 5,
     backgroundColor: '#4CD964',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 32,
+  },
+  emptyText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8E8E93',
+    marginTop: 16,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 8,
   },
   bottomNav: {
     flexDirection: 'row',

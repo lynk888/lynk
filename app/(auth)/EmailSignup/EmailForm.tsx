@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ActivityIndicator } from 'react-native';
-import { signUpWithEmail } from '../../../servises/authService';
+import { signUpWithEmail } from '../../../services/authService';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../../context/AuthContext';
 
@@ -34,7 +34,7 @@ const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
 
     setIsLoading(true);
     try {
-      const result = await signUpWithEmail(email, password);
+      const result = await signUpWithEmail(email, password, username);
       if (result.success) {
         setAuthEmail(email);
         router.push('/(auth)/EmailVerification');
@@ -93,8 +93,8 @@ const EmailForm: React.FC<EmailFormProps> = ({ onSubmit }) => {
         editable={!isLoading}
       />
 
-      <TouchableOpacity 
-        style={[styles.button, isLoading && styles.buttonDisabled]} 
+      <TouchableOpacity
+        style={[styles.button, isLoading && styles.buttonDisabled]}
         onPress={handleSubmit}
         disabled={isLoading}
       >

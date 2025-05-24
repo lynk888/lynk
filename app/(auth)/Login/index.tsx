@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { useForm, Controller } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { loginSchema } from '../../../utils/validation';
-import { loginUser } from '../../../servises/authService';
+import { loginUser } from '../../../services/authService';
 import { useAuth } from '../../../context/AuthContext';
 import { supabase } from '../../../utils/supabase';
 import LoginButton from './LoginButton';
@@ -103,9 +103,9 @@ export default function LoginScreen() {
       />
 
       <LoginButton onPress={handleSubmit(onSubmit)} />
-      
-      <TouchableOpacity 
-        style={styles.forgotPasswordButton} 
+
+      <TouchableOpacity
+        style={styles.forgotPasswordButton}
         onPress={handleForgotPassword}
       >
         <Text style={styles.forgotPasswordText}>Forgot Password?</Text>

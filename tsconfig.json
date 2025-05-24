@@ -10,6 +10,7 @@
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx"
-, "app/(root)/Chat/Contact/ContactScreen.tsx"  ]
+    "**/*.tsx",
+    "app/(root)/Chat/Contact/ContactScreen.tsx"
+  ]
 }

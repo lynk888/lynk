@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -9,109 +9,122 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  FlatList,
+  ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useMessages } from '../../../hooks/useMessages';
+import { useTypingIndicator } from '../../../hooks/useTypingIndicator';
 
-interface Message {
-  id: string;
-  text: string;
-  time: string;
-  isSent: boolean;
-}
-
-// Define a type for our contact data
-interface ContactData {
-  [key: string]: {
-    name: string;
-  };
-}
+import { supabase } from '../../../utils/supabase';
 
 const ChatScreen2 = () => {
   const router = useRouter();
   const params = useLocalSearchParams();
-  const { contactId } = params;
+  const { conversationId, contactId } = params;
+  const flatListRef = useRef<FlatList>(null);
 
-  // Initialize with params, but will be updated from AsyncStorage if available
-  const [contactName, setContactName] = React.useState<string>(params.name ? String(params.name) : '');
-  const [avatarUri, setAvatarUri] = React.useState<string>(params.avatarUri ? String(params.avatarUri) : '');
+  // Initialize with params
+  const [contactName] = useState<string>(params.name ? String(params.name) : '');
+  const [avatarUri] = useState<string>(params.avatarUri ? String(params.avatarUri) : '');
 
-  const [isTyping, setIsTyping] = React.useState(false);
-  const [messageText, setMessageText] = React.useState('');
-  const [chatMessages, setChatMessages] = React.useState<Message[]>([]);
+  // Get current user ID
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
-  // Load contact data from AsyncStorage
   useEffect(() => {
-    const loadContactData = async () => {
-      try {
-        const contactsJson = await AsyncStorage.getItem('contacts');
-        if (contactsJson && contactId) {
-          const contacts: ContactData = JSON.parse(contactsJson);
-          const contact = contacts[String(contactId)];
-
-          if (contact && contact.name) {
-            setContactName(contact.name);
-            // Update avatar URI based on the new name
-            setAvatarUri(`https://ui-avatars.com/api/?name=${contact.name}&background=random`);
-          }
-        }
-      } catch (error) {
-        console.error('Error loading contact data:', error);
+    const getCurrentUser = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (data.user) {
+        setCurrentUserId(data.user.id);
       }
     };
 
-    loadContactData();
-  }, [contactId, params._timestamp]); // Re-run when contactId or timestamp changes
-
-  // Simulate typing indicator after a short delay
-  React.useEffect(() => {
-    const timer = setTimeout(() => {
-      setIsTyping(true);
-
-      // Hide typing indicator after 3 seconds
-      const hideTimer = setTimeout(() => {
-        setIsTyping(false);
-      }, 3000);
-
-      return () => clearTimeout(hideTimer);
-    }, 1500);
-
-    return () => clearTimeout(timer);
+    getCurrentUser();
   }, []);
 
-  // Function to handle sending a message
-  const handleSendMessage = () => {
+  // Use real-time messages hook
+  const {
+    messages,
+    loading,
+    error,
+    hasMore,
+    loadMoreMessages,
+    sendMessage,
+    markAllAsRead
+  } = useMessages(conversationId ? String(conversationId) : undefined);
+
+  // Use typing indicator hook
+  const { isAnyoneTyping, setTyping } = useTypingIndicator(
+    conversationId ? String(conversationId) : undefined
+  );
+
+  // Handle text input changes with debounced typing indicator
+  const [messageText, setMessageText] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleTextChange = (text: string) => {
+    setMessageText(text);
+
+    // Set typing indicator with debounce
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    // Only send typing indicator if text is not empty
+    if (text.trim().length > 0) {
+      setTyping(true);
+    }
+
+    // Clear typing indicator after 2 seconds of inactivity
+    typingTimeoutRef.current = setTimeout(() => {
+      setTyping(false);
+    }, 2000);
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
     if (messageText.trim() === '') return;
 
-    const newMessage: Message = {
-      id: Date.now().toString(),
-      text: messageText,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isSent: true
-    };
+    try {
+      // Clear typing indicator
+      setTyping(false);
 
-    setChatMessages(prevMessages => [...prevMessages, newMessage]);
-    setMessageText('');
+      // Clear input
+      const textToSend = messageText;
+      setMessageText('');
 
-    // Simulate a reply after 2 seconds
-    setTimeout(() => {
-      setIsTyping(true);
-
-      setTimeout(() => {
-        setIsTyping(false);
-
-        const replyMessage: Message = {
-          id: (Date.now() + 1).toString(),
-          text: `Hi there! This is an automated reply from ${contactName}.`,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          isSent: false
-        };
-
-        setChatMessages(prevMessages => [...prevMessages, replyMessage]);
-      }, 2000);
-    }, 1000);
+      // Send message
+      await sendMessage(textToSend);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    }
   };
+
+  // Mark messages as read when the screen is focused
+  useEffect(() => {
+    if (conversationId) {
+      markAllAsRead();
+    }
+  }, [conversationId, markAllAsRead]);
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
+  }, [error]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -151,49 +164,85 @@ const ChatScreen2 = () => {
 
       {/* Chat Messages */}
       <View style={styles.messagesContainer}>
-        {chatMessages.length === 0 ? (
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        ) : messages.length === 0 ? (
           <View style={styles.emptyChat}>
             <Text style={styles.emptyChatText}>No messages yet with {contactName || 'this contact'}</Text>
             <Text style={styles.emptyChatSubtext}>Send a message to start a conversation!</Text>
           </View>
         ) : (
-          chatMessages.map((message) => (
-            <View
-              key={message.id}
-              style={[
-                styles.messageWrapper,
-                message.isSent ? styles.sentWrapper : styles.receivedWrapper,
-              ]}
-            >
-              <View
-                style={[
-                  styles.messageBubble,
-                  message.isSent ? styles.sentBubble : styles.receivedBubble,
-                ]}
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messagesList}
+            inverted={false}
+            renderItem={({ item: message }) => {
+              // Determine if message is sent by current user
+              const isSent = message.sender_id === currentUserId;
+
+              // Format time
+              const messageTime = new Date(message.created_at).toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
+              });
+
+              return (
+                <View
+                  style={[
+                    styles.messageWrapper,
+                    isSent ? styles.sentWrapper : styles.receivedWrapper,
+                  ]}
+                >
+                  <View
+                    style={[
+                      styles.messageBubble,
+                      isSent ? styles.sentBubble : styles.receivedBubble,
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.messageText,
+                        isSent ? styles.sentText : styles.receivedText,
+                      ]}
+                    >
+                      {message.content}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.messageTime,
+                        isSent ? styles.sentTime : styles.receivedTime,
+                      ]}
+                    >
+                      {messageTime}
+                    </Text>
+                  </View>
+                </View>
+              );
+            }}
+            onEndReached={loadMoreMessages}
+            onEndReachedThreshold={0.1}
+            ListHeaderComponent={hasMore ? (
+              <TouchableOpacity
+                style={styles.loadMoreButton}
+                onPress={loadMoreMessages}
+                disabled={loading}
               >
-                <Text
-                  style={[
-                    styles.messageText,
-                    message.isSent ? styles.sentText : styles.receivedText,
-                  ]}
-                >
-                  {message.text}
-                </Text>
-                <Text
-                  style={[
-                    styles.messageTime,
-                    message.isSent ? styles.sentTime : styles.receivedTime,
-                  ]}
-                >
-                  {message.time}
-                </Text>
-              </View>
-            </View>
-          ))
+                {loading ? (
+                  <ActivityIndicator size="small" color="#007AFF" />
+                ) : (
+                  <Text style={styles.loadMoreText}>Load more messages</Text>
+                )}
+              </TouchableOpacity>
+            ) : null}
+          />
         )}
 
         {/* Typing indicator */}
-        {isTyping && (
+        {isAnyoneTyping && (
           <View style={styles.typingContainer}>
             <View style={styles.typingBubble}>
               <View style={styles.typingDot} />
@@ -219,7 +268,7 @@ const ChatScreen2 = () => {
           placeholder={`Message ${contactName || ''}`}
           placeholderTextColor="#8E8E93"
           value={messageText}
-          onChangeText={setMessageText}
+          onChangeText={handleTextChange}
           onSubmitEditing={handleSendMessage}
           returnKeyType="send"
         />
@@ -293,6 +342,11 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 16,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptyChat: {
     flex: 1,
     justifyContent: 'center',
@@ -306,6 +360,9 @@ const styles = StyleSheet.create({
   emptyChatSubtext: {
     fontSize: 14,
     color: '#8E8E93',
+  },
+  messagesList: {
+    paddingBottom: 8,
   },
   messageWrapper: {
     marginVertical: 4,
@@ -351,6 +408,19 @@ const styles = StyleSheet.create({
   },
   receivedTime: {
     color: '#8E8E93',
+  },
+  loadMoreButton: {
+    backgroundColor: '#F2F2F7',
+    padding: 8,
+    borderRadius: 16,
+    alignItems: 'center',
+    marginVertical: 8,
+    alignSelf: 'center',
+  },
+  loadMoreText: {
+    color: '#007AFF',
+    fontSize: 14,
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -404,5 +474,3 @@ const styles = StyleSheet.create({
 });
 
 export default ChatScreen2;
-
-

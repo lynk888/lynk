@@ -8,4 +8,4 @@ export class DatabaseService {
 
     if (error) throw error;
   }
-} 
+}

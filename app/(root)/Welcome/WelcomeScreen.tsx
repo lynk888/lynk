@@ -11,7 +11,7 @@ const WelcomeScreen: React.FC = () => {
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} style={styles.container}>
       <View style={styles.imageContainer}>
-        <Image 
+        <Image
           source={require('../../../assets/images/IMAGE2.jpg')}
           style={styles.image}
           resizeMode="contain"
@@ -26,7 +26,7 @@ const WelcomeScreen: React.FC = () => {
         </View>
 
         <TouchableOpacity onPress={() => router.push('/Terms')} accessibilityRole="link">
-          <Text style={styles.termsLink}>Terms &amp; privacy policy</Text>
+          <Text style={styles.termsLink}>Terms & privacy policy</Text>
         </TouchableOpacity>
 
         <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup/EmailSignupScreen')} />

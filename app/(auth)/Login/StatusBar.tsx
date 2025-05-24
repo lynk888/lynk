@@ -22,8 +22,6 @@ const StatusBar: React.FC<StatusBarProps> = () => {
   );
 };
 
-export default StatusBar;
-
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
@@ -42,3 +40,5 @@ const styles = StyleSheet.create({
   },
   iconsContainer: {},
 });
+
+export default StatusBar;
