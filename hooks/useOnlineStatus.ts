@@ -50,4 +50,4 @@ export const useOnlineStatus = () => {
       clearInterval(refreshInterval);
     };
   }, [updateOnlineStatus]);
-}; 
+};

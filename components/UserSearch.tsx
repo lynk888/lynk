@@ -182,44 +182,6 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
     }
   };
 
-  const startConversation = async (user: User): Promise<void> => {
-    try {
-      setLoading(true);
-
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert({})
-        .select()
-        .single();
-
-      if (convError) throw convError;
-
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (!currentUser?.id) throw new Error('User not authenticated');
-
-      const { error: participantError } = await supabase
-        .from('conversation_participants')
-        .insert([
-          { conversation_id: conversation.id, user_id: currentUser.id },
-          { conversation_id: conversation.id, user_id: user.id }
-        ]);
-
-      if (participantError) throw participantError;
-
-      navigation.navigate('Chat', {
-        conversationId: conversation.id,
-        recipientName: user.username
-      });
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start conversation';
-      setError(errorMessage);
-      Alert.alert('Error', 'Failed to start conversation. Please try again.');
-      console.error('Error starting conversation:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const getLastSeenText = (lastSeen: string, isOnline: boolean): string => {
     if (isOnline) return 'Online';
     try {
@@ -232,8 +194,6 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
   const handleUserPress = (user: User) => {
     if (onUserSelected) {
       onUserSelected(user);
-    } else {
-      void startConversation(user);
     }
   };
 
@@ -242,7 +202,7 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
       <UserItem
         user={item}
         onPress={() => handleUserPress(item)}
-        onStartConversation={() => void startConversation(item)}
+        onStartConversation={() => handleUserPress(item)}
         showStartChatButton={!onUserSelected}
         getLastSeenText={getLastSeenText}
       />

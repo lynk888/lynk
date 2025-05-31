@@ -10,10 +10,10 @@ export default function AuthLayout() {
 
     return (
       <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="Login/index" />
-        <Stack.Screen name="EmailSignup/index" />
-        <Stack.Screen name="EmailVerification/index" />
-        <Stack.Screen name="CreateAccount/CreateAccountScreen" />
+        <Stack.Screen name="Login" />
+        <Stack.Screen name="EmailSignup" />
+        <Stack.Screen name="EmailVerification" />
+        <Stack.Screen name="CreateAccount" />
       </Stack>
     );
   } catch (error) {

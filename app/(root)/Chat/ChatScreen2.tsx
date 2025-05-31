@@ -152,10 +152,12 @@ const ChatScreen2 = () => {
           </TouchableOpacity>
           <TouchableOpacity
             style={styles.menuButton}
-            onPress={() => router.push({
-              pathname: '/(root)/Chat/ContactInfo/ContactInfo',
-              params: { contactName: contactName, contactId: contactId }
-            })}
+            onPress={() => {
+              router.push({
+                pathname: '/(root)/Chat/ContactInfo/ContactInfo',
+                params: { contactName: contactName, contactId: contactId }
+              });
+            }}
           >
             <Ionicons name="ellipsis-horizontal" size={24} color="#007AFF" />
           </TouchableOpacity>

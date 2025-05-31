@@ -193,3 +193,9 @@ CREATE TRIGGER update_conversation_last_message_trigger
 AFTER INSERT ON messages
 FOR EACH ROW
 EXECUTE FUNCTION update_conversation_last_message();
+
+-- Enable real-time for tables
+ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+ALTER PUBLICATION supabase_realtime ADD TABLE conversation_participants;
+ALTER PUBLICATION supabase_realtime ADD TABLE message_status;

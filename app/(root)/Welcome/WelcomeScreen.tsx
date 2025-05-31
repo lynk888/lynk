@@ -1,9 +1,8 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import ProgressDots from './ProgressDots';
 import Button from './Button';
-import StatusBar from './StatusBar';
 
 const WelcomeScreen: React.FC = () => {
   const router = useRouter();
@@ -25,10 +24,6 @@ const WelcomeScreen: React.FC = () => {
           <Text style={styles.subtitle}>Let's get you started!</Text>
         </View>
 
-        <TouchableOpacity onPress={() => router.push('/Terms')} accessibilityRole="link">
-          <Text style={styles.termsLink}>Terms & privacy policy</Text>
-        </TouchableOpacity>
-
         <Button title="Register" onPress={() => router.push('/(auth)/EmailSignup/EmailSignupScreen')} />
         <Button title="Login" onPress={() => router.push('/(auth)/Login')} />
       </View>
@@ -38,11 +33,11 @@ const WelcomeScreen: React.FC = () => {
 
 const styles = StyleSheet.create({
   container: {
-    flex: 0,
+    flex: 1,
     backgroundColor: '#FFFFFF',
   },
   scrollContent: {
-    flexGrow: 0,
+    flexGrow: 1,
     justifyContent: 'center',
     paddingHorizontal: 50,
   },
@@ -70,11 +65,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#000000',
     textAlign: 'center',
-  },
-  termsLink: {
-    color: '#7CC2E4',
-    fontSize: 15,
-    textDecorationLine: 'underline',
   },
   image: {
     width: 300,

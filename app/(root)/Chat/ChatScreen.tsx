@@ -26,19 +26,19 @@ function MyComponent() {
   const navigationItems = [
     {
       name: "Contacts",
-      icon: <Users size={24} color="#0000004c" />,
+      icon: () => <Users size={24} color="#0000004c" />,
       active: false,
       route: "/(root)/Chat/Contact/ContactScreen",
     },
     {
       name: "Calls",
-      icon: <Phone size={24} color="#0000004c" />,
+      icon: () => <Phone size={24} color="#0000004c" />,
       active: false,
       route: "/(root)/Calls/CallsScreen",
     },
     {
       name: "Chats",
-      icon: (
+      icon: () => (
         <View style={styles.chatIconContainer}>
           <View style={styles.chatIconBox}>
             <View style={styles.chatIconLarge} />
@@ -51,7 +51,7 @@ function MyComponent() {
     },
     {
       name: "Settings",
-      icon: <Settings size={24} color="#0000004c" />,
+      icon: () => <Settings size={24} color="#0000004c" />,
       active: false,
       route: "/(root)/Settings/SettingsScreen",
     },
@@ -93,10 +93,12 @@ function MyComponent() {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.conversationItem}
-                onPress={() => router.push({
-                  pathname: '/(root)/Chat/RealTimeChat',
-                  params: { conversationId: item.id }
-                })}
+                onPress={() => {
+                  router.push({
+                    pathname: '/(root)/Chat/RealTimeChat',
+                    params: { conversationId: item.id }
+                  });
+                }}
               >
                 <View style={styles.avatar}>
                   <Text style={styles.avatarText}>
@@ -129,7 +131,7 @@ function MyComponent() {
                     >
                       {item.last_message_text || 'No messages yet'}
                     </Text>
-                    {item.unread_count ? (
+                    {item.unread_count && item.unread_count > 0 ? (
                       <View style={styles.badge}>
                         <Text style={styles.badgeText}>{item.unread_count}</Text>
                       </View>
@@ -153,7 +155,7 @@ function MyComponent() {
               onPress={() => router.push(item.route)}
             >
               <View style={styles.iconContainer}>
-                {item.icon}
+                {item.icon()}
               </View>
               <Text style={[styles.navText, item.active && styles.activeText]}>
                 {item.name}

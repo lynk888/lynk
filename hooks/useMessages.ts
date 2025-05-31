@@ -9,6 +9,11 @@ export function useMessages(conversationId: string | undefined) {
   const [hasMore, setHasMore] = useState(true);
   const [oldestMessageDate, setOldestMessageDate] = useState<string | null>(null);
 
+  // Update database schema on mount
+  useEffect(() => {
+    MessageService.updateDatabaseSchema().catch(console.error);
+  }, []);
+
   // Fetch initial messages
   useEffect(() => {
     if (!conversationId) return;

@@ -7,6 +7,7 @@ export interface Conversation {
   last_message_text?: string;
   last_message_time?: string;
   participants?: User[];
+  unread_count?: number;
 }
 
 export interface User {
@@ -22,12 +23,17 @@ export class ConversationService {
    */
   static async createConversation(participantIds: string[]): Promise<Conversation | null> {
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return null;
+    if (!userData.user) {
+      return null;
+    }
 
     // Create conversation
     const { data: conversation, error } = await supabase
       .from('conversations')
-      .insert({})
+      .insert({
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
       .select()
       .single();
 
@@ -104,32 +110,46 @@ export class ConversationService {
    */
   static async getConversationParticipants(conversationId: string): Promise<User[]> {
     try {
-      const { data, error } = await supabase
+      // First get the participant user IDs
+      const { data: participantData, error: participantError } = await supabase
         .from('conversation_participants')
-        .select(`
-          user_id,
-          profiles:user_id(id, username, avatar_url)
-        `)
+        .select('user_id')
         .eq('conversation_id', conversationId);
 
-      if (error) {
-        if (error.message.includes('relation "public.profiles" does not exist')) {
-          console.log('Profiles table does not exist yet. Returning user IDs only.');
-
-          // If profiles table doesn't exist, just return user IDs
-          const { data: participantData, error: participantError } = await supabase
-            .from('conversation_participants')
-            .select('user_id')
-            .eq('conversation_id', conversationId);
-
-          if (participantError) throw participantError;
-
-          return participantData?.map(item => ({ id: item.user_id })) || [];
-        }
-        throw error;
+      if (participantError) {
+        console.error('Error getting participants:', participantError);
+        throw participantError;
       }
 
-      return data?.map(item => item.profiles) || [];
+      if (!participantData || participantData.length === 0) {
+        return [];
+      }
+
+      // Get user IDs
+      const userIds = participantData.map(p => p.user_id);
+
+      // Try to get profile information for these users
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_url, email')
+        .in('id', userIds);
+
+      if (profileError) {
+        console.log('Error getting profiles, returning user IDs only:', profileError);
+        // If profiles query fails, return just the user IDs
+        return userIds.map(id => ({ id }));
+      }
+
+      // Combine participant data with profile data
+      return userIds.map(userId => {
+        const profile = profileData?.find(p => p.id === userId);
+        return {
+          id: userId,
+          username: profile?.username,
+          avatar_url: profile?.avatar_url,
+          email: profile?.email
+        };
+      });
     } catch (err) {
       console.error('Error getting conversation participants:', err);
       return [];

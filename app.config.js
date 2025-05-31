@@ -17,7 +17,7 @@ export default {
     ],
     ios: {
       supportsTablet: true,
-      bundleIdentifier: "com.lynk.app",
+      bundleIdentifier: "com.lynk.app"
     },
     android: {
       adaptiveIcon: {
@@ -37,7 +37,7 @@ export default {
       },
     },
     plugins: [
-      "expo-router",
-    ],
+      "expo-router"
+    ]
   }
 };

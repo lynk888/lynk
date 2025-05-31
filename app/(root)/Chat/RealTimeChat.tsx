@@ -17,7 +17,7 @@ export default function RealTimeChat() {
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const { token } = useAuth();
-  const typingTimeoutRef = useRef<number | null>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Get messages with real-time updates
   const {
@@ -83,14 +83,29 @@ export default function RealTimeChat() {
 
   // Handle sending a message
   const handleSend = async () => {
-    if (!message.trim() || !conversationId) return;
+    if (!message.trim() || !conversationId) {
+      console.log('Cannot send message: missing content or conversation ID', {
+        hasMessage: !!message.trim(),
+        hasConversationId: !!conversationId
+      });
+      return;
+    }
+
+    console.log('Attempting to send message:', {
+      conversationId,
+      messageContent: message.trim(),
+      currentUserId
+    });
 
     try {
-      await sendMessage(message.trim());
+      const result = await sendMessage(message.trim());
+      console.log('Message sent successfully:', result);
       setMessage('');
       setTyping(false);
     } catch (error) {
       console.error('Error sending message:', error);
+      // Show user-friendly error message
+      alert('Failed to send message. Please try again.');
     }
   };
 
