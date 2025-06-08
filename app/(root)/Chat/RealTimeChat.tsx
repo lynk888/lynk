@@ -7,6 +7,8 @@ import { ConversationService } from '../../../services/conversationService';
 import { useAuth } from '../../../context/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../../utils/supabase';
+import { AttachmentService } from '../../../services/attachmentService';
+import { MessageItem } from '../../../components/MessageItem';
 
 export default function RealTimeChat() {
   const { conversationId } = useLocalSearchParams<{ conversationId: string }>();
@@ -18,6 +20,8 @@ export default function RealTimeChat() {
   const router = useRouter();
   const { token } = useAuth();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const [isAttachmentMenuVisible, setIsAttachmentMenuVisible] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
 
   // Get messages with real-time updates
   const {
@@ -131,6 +135,34 @@ export default function RealTimeChat() {
     }
   };
 
+  const handleAttachment = async (type: 'image' | 'document') => {
+    try {
+      setIsUploading(true);
+      setIsAttachmentMenuVisible(false);
+      
+      let result;
+      if (type === 'image') {
+        result = await AttachmentService.pickImage();
+      } else {
+        result = await AttachmentService.pickDocument();
+      }
+      
+      if (result) {
+        await sendMessage(
+          message.trim() || `Shared a ${type}`, 
+          result.url, 
+          result.type
+        );
+        setMessage('');
+      }
+    } catch (error) {
+      console.error('Error handling attachment:', error);
+      alert('Failed to send attachment. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
@@ -158,28 +190,12 @@ export default function RealTimeChat() {
         ref={flatListRef}
         data={messages}
         keyExtractor={(item) => item.id}
-        renderItem={({ item }) => {
-          const isSentByMe = item.sender_id === currentUserId;
-          return (
-            <View style={[
-              styles.messageBubble,
-              isSentByMe ? styles.sentMessage : styles.receivedMessage
-            ]}>
-              <Text style={[
-                styles.messageText,
-                isSentByMe ? styles.sentMessageText : styles.receivedMessageText
-              ]}>
-                {item.content}
-              </Text>
-              <Text style={[
-                styles.messageTime,
-                isSentByMe ? styles.sentMessageTime : styles.receivedMessageTime
-              ]}>
-                {new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-              </Text>
-            </View>
-          );
-        }}
+        renderItem={({ item }) => (
+          <MessageItem
+            message={item}
+            isOwnMessage={item.sender_id === currentUserId}
+          />
+        )}
         contentContainerStyle={styles.messageList}
         onEndReached={hasMore ? loadMoreMessages : undefined}
         onEndReachedThreshold={0.1}
@@ -196,21 +212,56 @@ export default function RealTimeChat() {
       )}
 
       <View style={styles.inputContainer}>
+        <TouchableOpacity 
+          onPress={() => setIsAttachmentMenuVisible(!isAttachmentMenuVisible)}
+          style={styles.attachButton}
+        >
+          <Ionicons name="attach" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        
         <TextInput
-          style={styles.input}
-          placeholder="Type a message..."
           value={message}
           onChangeText={handleTyping}
+          placeholder="Type a message..."
+          style={styles.input}
           multiline
         />
-        <TouchableOpacity
-          style={[styles.sendButton, !message.trim() && styles.sendButtonDisabled]}
+        
+        <TouchableOpacity 
           onPress={handleSend}
-          disabled={!message.trim()}
+          disabled={!message.trim() && !isUploading}
+          style={styles.sendButton}
         >
-          <Ionicons name="send" size={24} color="white" />
+          <Ionicons name="send" size={24} color={message.trim() ? "#007AFF" : "#C7C7CC"} />
         </TouchableOpacity>
       </View>
+
+      {isAttachmentMenuVisible && (
+        <View style={styles.attachmentMenu}>
+          <TouchableOpacity 
+            onPress={() => handleAttachment('image')}
+            style={styles.attachmentOption}
+          >
+            <Ionicons name="image" size={24} color="#007AFF" />
+            <Text style={styles.attachmentText}>Image</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            onPress={() => handleAttachment('document')}
+            style={styles.attachmentOption}
+          >
+            <Ionicons name="document" size={24} color="#007AFF" />
+            <Text style={styles.attachmentText}>Document</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {isUploading && (
+        <View style={styles.uploadingIndicator}>
+          <ActivityIndicator size="small" color="#007AFF" />
+          <Text style={styles.uploadingText}>Uploading...</Text>
+        </View>
+      )}
     </KeyboardAvoidingView>
   );
 }
@@ -315,5 +366,48 @@ const styles = StyleSheet.create({
   },
   loadingMore: {
     marginVertical: 16,
+  },
+  attachButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  attachmentMenu: {
+    position: 'absolute',
+    bottom: 60,
+    right: 16,
+    backgroundColor: 'white',
+    borderRadius: 8,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  attachmentOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+  },
+  attachmentText: {
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  uploadingIndicator: {
+    position: 'absolute',
+    bottom: 16,
+    right: 16,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    borderRadius: 8,
+    padding: 12,
+    alignItems: 'center',
+  },
+  uploadingText: {
+    color: 'white',
+    marginLeft: 8,
   },
 });

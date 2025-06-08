@@ -11,9 +11,9 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('Missing Supabase configuration. Please check your environment variables.');
 }
 
-// Fallback to hardcoded values if environment variables are not available
-const url = supabaseUrl || 'https://jpirmkxxnzycatxgphel.supabase.co';
-const key = supabaseAnonKey || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwaXJta3h4bnp5Y2F0eGdwaGVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDk0MzcsImV4cCI6MjA2MjYyNTQzN30.y-kpjqj8SLr1QENHyVq85NgJ-m4zApaOPwrOOi-Rwb0';
+// Use environment variables properly
+const url = process.env.EXPO_PUBLIC_SUPABASE_URL || 'your-supabase-url';
+const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
 
 export const supabase = createClient(url, key, {
   auth: {

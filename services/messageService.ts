@@ -395,4 +395,21 @@ export class MessageService {
       }
     };
   }
+
+  static async sendMessageWithAttachment(
+    conversationId: string,
+    content: string,
+    attachment: {
+      url: string;
+      type: string;
+      fileName: string;
+    }
+  ): Promise<Message | null> {
+    return this.sendMessage(
+      conversationId,
+      content,
+      attachment.url,
+      attachment.type
+    );
+  }
 }

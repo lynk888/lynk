@@ -17,6 +17,18 @@ export interface User {
   avatar_url?: string;
 }
 
+export interface Participant {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+}
+
+interface ConversationParticipant {
+  user_id: string;
+  username: string;
+  avatar_url: string | null;
+}
+
 export class ConversationService {
   /**
    * Create a new conversation with participants
@@ -27,48 +39,51 @@ export class ConversationService {
       return null;
     }
 
-    // Create conversation
-    const { data: conversation, error } = await supabase
-      .from('conversations')
-      .insert({
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
-      })
-      .select()
-      .single();
-
-    if (error) throw error;
-
-    // Add all participants including current user
-    const allParticipantIds = [...new Set([...participantIds, userData.user.id])];
-
-    const participants = allParticipantIds.map(userId => ({
-      conversation_id: conversation.id,
-      user_id: userId
-    }));
-
-    const { error: participantError } = await supabase
-      .from('conversation_participants')
-      .insert(participants);
-
-    if (participantError) throw participantError;
-
-    // Notify all participants about the new conversation
-    for (const participantId of participantIds) {
-      if (participantId !== userData.user.id) {
-        const channel = supabase.channel(`user:${participantId}`);
-        await channel.send({
-          type: 'broadcast',
-          event: 'new_conversation',
-          payload: {
-            conversation_id: conversation.id,
-            created_by: userData.user.id
-          }
+    try {
+      // Create conversation with participants using the new function
+      const { data: conversationId, error } = await supabase
+        .rpc<string, { p_creator_id: string; p_participant_ids: string[] }>('create_conversation_with_participants', {
+          p_creator_id: userData.user.id,
+          p_participant_ids: participantIds
         });
-      }
-    }
 
-    return conversation;
+      if (error) {
+        console.error('Error creating conversation:', error);
+        throw error;
+      }
+
+      // Get the created conversation
+      const { data: conversation, error: fetchError } = await supabase
+        .from('conversations')
+        .select('*')
+        .eq('id', conversationId)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching created conversation:', fetchError);
+        throw fetchError;
+      }
+
+      // Notify other participants
+      for (const participantId of participantIds) {
+        if (participantId !== userData.user.id) {
+          const channel = supabase.channel(`user:${participantId}`);
+          await channel.send({
+            type: 'broadcast',
+            event: 'new_conversation',
+            payload: {
+              conversation_id: conversationId,
+              created_by: userData.user.id
+            }
+          });
+        }
+      }
+
+      return conversation;
+    } catch (error) {
+      console.error('Error in createConversation:', error);
+      throw error;
+    }
   }
 
   /**
@@ -108,50 +123,29 @@ export class ConversationService {
   /**
    * Get participants of a conversation
    */
-  static async getConversationParticipants(conversationId: string): Promise<User[]> {
+  static async getConversationParticipants(conversationId: string): Promise<Participant[]> {
     try {
-      // First get the participant user IDs
-      const { data: participantData, error: participantError } = await supabase
-        .from('conversation_participants')
-        .select('user_id')
-        .eq('conversation_id', conversationId);
+      const { data, error } = await supabase
+        .rpc('get_conversation_participants', {
+          conversation_id: conversationId
+        });
 
-      if (participantError) {
-        console.error('Error getting participants:', participantError);
-        throw participantError;
-      }
-
-      if (!participantData || participantData.length === 0) {
+      if (error) {
+        console.error('Error fetching participants:', error);
         return [];
       }
 
-      // Get user IDs
-      const userIds = participantData.map(p => p.user_id);
-
-      // Try to get profile information for these users
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('id, username, avatar_url, email')
-        .in('id', userIds);
-
-      if (profileError) {
-        console.log('Error getting profiles, returning user IDs only:', profileError);
-        // If profiles query fails, return just the user IDs
-        return userIds.map(id => ({ id }));
+      if (!data || !Array.isArray(data)) {
+        return [];
       }
 
-      // Combine participant data with profile data
-      return userIds.map(userId => {
-        const profile = profileData?.find(p => p.id === userId);
-        return {
-          id: userId,
-          username: profile?.username,
-          avatar_url: profile?.avatar_url,
-          email: profile?.email
-        };
-      });
-    } catch (err) {
-      console.error('Error getting conversation participants:', err);
+      return data.map((p: ConversationParticipant) => ({
+        userId: p.user_id,
+        username: p.username || '',
+        avatarUrl: p.avatar_url || null
+      }));
+    } catch (error) {
+      console.error('Error in getConversationParticipants:', error);
       return [];
     }
   }
