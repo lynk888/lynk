@@ -29,6 +29,7 @@ const ChatScreen2 = () => {
   // Initialize with params
   const [contactName] = useState<string>(params.name ? String(params.name) : '');
   const [avatarUri] = useState<string>(params.avatarUri ? String(params.avatarUri) : '');
+  const [contactProfile, setContactProfile] = useState<any>(null);
 
   // Get current user ID
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -43,6 +44,32 @@ const ChatScreen2 = () => {
 
     getCurrentUser();
   }, []);
+
+  // Fetch contact profile
+  useEffect(() => {
+    const fetchContactProfile = async () => {
+      if (contactId) {
+        try {
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', contactId)
+            .single();
+
+          if (error) {
+            console.error('Error fetching contact profile:', error);
+            return;
+          }
+
+          setContactProfile(data);
+        } catch (error) {
+          console.error('Error fetching contact profile:', error);
+        }
+      }
+    };
+
+    fetchContactProfile();
+  }, [contactId]);
 
   // Use real-time messages hook
   const {
@@ -130,35 +157,30 @@ const ChatScreen2 = () => {
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity
+        <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => router.push('/(root)/Chat/Contact/ContactScreen')}
+          onPress={() => router.back()}
         >
           <Ionicons name="chevron-back" size={24} color="#007AFF" />
-          <Text style={styles.backText}>Contacts</Text>
         </TouchableOpacity>
-
+        
         <View style={styles.headerProfile}>
           <Image
-            source={{ uri: avatarUri ? String(avatarUri) : 'https://via.placeholder.com/40' }}
+            source={{ 
+              uri: contactProfile?.avatar_url || avatarUri || 'https://via.placeholder.com/40'
+            }}
             style={styles.profileImage}
           />
-          <Text style={styles.headerName}>{contactName || 'Chat'}</Text>
+          <Text style={styles.headerName}>
+            {contactProfile?.username || contactName || 'User'}
+          </Text>
         </View>
 
         <View style={styles.headerRight}>
           <TouchableOpacity style={styles.callButton}>
             <Ionicons name="call" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.menuButton}
-            onPress={() => {
-              router.push({
-                pathname: '/(root)/Chat/ContactInfo/ContactInfo',
-                params: { contactName: contactName, contactId: contactId }
-              });
-            }}
-          >
+          <TouchableOpacity style={styles.menuButton}>
             <Ionicons name="ellipsis-horizontal" size={24} color="#007AFF" />
           </TouchableOpacity>
         </View>

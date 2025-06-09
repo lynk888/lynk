@@ -13,6 +13,7 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { supabase } from '../../../utils/supabase';
+import * as ImagePicker from 'expo-image-picker';
 
 interface UserProfile {
   id: string;
@@ -20,6 +21,8 @@ interface UserProfile {
   email: string;
   avatar_url?: string;
   created_at?: string;
+  bio?: string;
+  interests?: string[];
 }
 
 const UserProfileScreen = () => {
@@ -37,6 +40,8 @@ const UserProfileScreen = () => {
     username: initialUsername,
     email: initialEmail,
     avatar_url: initialAvatarUrl,
+    bio: '',
+    interests: [],
   });
   
   const [isEditing, setIsEditing] = useState(false);
@@ -75,6 +80,8 @@ const UserProfileScreen = () => {
         email: userData.user.email || initialEmail,
         avatar_url: profileData?.avatar_url || initialAvatarUrl,
         created_at: profileData?.created_at || userData.user.created_at,
+        bio: profileData?.bio || '',
+        interests: profileData?.interests || [],
       });
     } catch (error) {
       console.error('Error fetching user profile:', error);
@@ -102,6 +109,8 @@ const UserProfileScreen = () => {
           username: profile.username,
           avatar_url: profile.avatar_url,
           email: profile.email,
+          bio: profile.bio,
+          interests: profile.interests,
         });
 
       if (error) {
@@ -123,6 +132,80 @@ const UserProfileScreen = () => {
   const handleCancel = () => {
     setIsEditing(false);
     fetchUserProfile(); // Reset to original values
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled) {
+        const imageUri = result.assets[0].uri;
+        await uploadImage(imageUri);
+      }
+    } catch (error) {
+      console.error('Error picking image:', error);
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const uploadImage = async (uri: string) => {
+    try {
+      setLoading(true);
+      
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) {
+        Alert.alert('Error', 'User not found');
+        return;
+      }
+
+      // Convert image to blob
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      // Upload to Supabase Storage
+      const fileExt = uri.split('.').pop();
+      const fileName = `${userData.user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `avatars/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, blob);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .upsert({
+          id: userData.user.id,
+          avatar_url: publicUrl,
+        });
+
+      if (updateError) {
+        throw updateError;
+      }
+
+      // Update local state
+      setProfile(prev => ({ ...prev, avatar_url: publicUrl }));
+      Alert.alert('Success', 'Profile picture updated successfully');
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      Alert.alert('Error', 'Failed to upload image');
+    } finally {
+      setLoading(false);
+    }
   };
 
   if (loading) {
@@ -162,14 +245,24 @@ const UserProfileScreen = () => {
       <View style={styles.content}>
         {/* Avatar Section */}
         <View style={styles.avatarSection}>
-          <Image
-            source={{
-              uri: profile.avatar_url || 'https://via.placeholder.com/120'
-            }}
-            style={styles.avatar}
-          />
+          <TouchableOpacity onPress={isEditing ? pickImage : undefined}>
+            <Image
+              source={{
+                uri: profile.avatar_url || 'https://via.placeholder.com/120'
+              }}
+              style={styles.avatar}
+            />
+            {isEditing && (
+              <View style={styles.changePhotoOverlay}>
+                <Ionicons name="camera" size={24} color="#FFFFFF" />
+              </View>
+            )}
+          </TouchableOpacity>
           {isEditing && (
-            <TouchableOpacity style={styles.changePhotoButton}>
+            <TouchableOpacity 
+              style={styles.changePhotoButton}
+              onPress={pickImage}
+            >
               <Text style={styles.changePhotoText}>Change Photo</Text>
             </TouchableOpacity>
           )}
@@ -190,6 +283,43 @@ const UserProfileScreen = () => {
               />
             ) : (
               <Text style={styles.fieldValue}>{profile.username || 'Not set'}</Text>
+            )}
+          </View>
+
+          {/* Bio */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Bio</Text>
+            {isEditing ? (
+              <TextInput
+                style={[styles.fieldInput, styles.bioInput]}
+                value={profile.bio}
+                onChangeText={(text) => setProfile(prev => ({ ...prev, bio: text }))}
+                placeholder="Tell us about yourself"
+                multiline
+                numberOfLines={3}
+              />
+            ) : (
+              <Text style={styles.fieldValue}>{profile.bio || 'No bio yet'}</Text>
+            )}
+          </View>
+
+          {/* Interests */}
+          <View style={styles.fieldContainer}>
+            <Text style={styles.fieldLabel}>Interests</Text>
+            {isEditing ? (
+              <TextInput
+                style={styles.fieldInput}
+                value={profile.interests?.join(', ')}
+                onChangeText={(text) => setProfile(prev => ({ 
+                  ...prev, 
+                  interests: text.split(',').map(i => i.trim()).filter(i => i)
+                }))}
+                placeholder="Add interests (comma separated)"
+              />
+            ) : (
+              <Text style={styles.fieldValue}>
+                {profile.interests?.length ? profile.interests.join(', ') : 'No interests added'}
+              </Text>
             )}
           </View>
 
@@ -330,6 +460,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#000',
     fontWeight: '600',
+  },
+  bioInput: {
+    height: 100,
+  },
+  changePhotoOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    borderRadius: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
