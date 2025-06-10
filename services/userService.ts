@@ -1,3 +1,4 @@
+
 import { supabase } from '../utils/supabase';
 
 export interface User {
@@ -135,17 +136,21 @@ export class UserService {
 
           return basicData?.map(item => ({
             id: item.contact_id,
+            email: '', // Default empty email for basic data
             display_name: item.display_name
           })) || [];
         }
         throw error;
       }
 
-      // Filter out any contacts with invalid UUIDs
+      // Filter out any contacts with invalid UUIDs and map to User objects
       return data
         .filter(item => item.profiles && this.isValidUUID(item.profiles.id))
         .map(item => ({
-          ...item.profiles,
+          id: item.profiles.id,
+          email: item.profiles.email || '',
+          username: item.profiles.username,
+          avatar_url: item.profiles.avatar_url,
           display_name: item.display_name
         }));
     } catch (err) {

@@ -1,9 +1,10 @@
+
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { TypingService } from '../services/typingService';
 
 export function useTypingIndicator(conversationId: string | undefined) {
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
-  const typingTimeoutRef = useRef<Record<string, number>>({});
+  const typingTimeoutRef = useRef<Record<string, NodeJS.Timeout>>({});
 
   // Subscribe to typing status updates
   useEffect(() => {

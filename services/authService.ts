@@ -1,3 +1,4 @@
+
 import { supabase } from '../utils/supabase';
 import { DatabaseService } from './databaseService';
 
@@ -220,7 +221,7 @@ export const updatePassword = async (newPassword: string): Promise<RegisterRespo
     return {
       success: true,
     };
-  } catch (error) {
+  } catch (error: any) {
     console.error('Unexpected error:', error);
     return {
       success: false,
