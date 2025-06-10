@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
 import { useRouter } from 'expo-router';
-import { UserSearch, User } from '../../../components/UserSearch';
-import { UserService } from '../../../services/userService';
+import { UserSearch } from '../../../components/UserSearch';
+import { UserService, User } from '../../../services/userService';
 import { ConversationService } from '../../../services/conversationService';
 import { Ionicons } from '@expo/vector-icons';
 

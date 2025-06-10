@@ -12,7 +12,7 @@
     "**/*.ts",
     "**/*.tsx",
     "app/(root)/Chat/Contact/ContactScreen.tsx"
-  ],
+, "app/(root)/Chat/ChatScreen1", "app/(root)/Chat/ChatScreen2"  ],
   "exclude": [
     "supabase/functions/**/*"
   ]

@@ -1,6 +1,7 @@
 
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Colors } from '../../../constants/Colors';
 
 interface LoginButtonProps {
   onPress: () => void;
@@ -19,14 +20,14 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: 48,
-    backgroundColor: '#7CC2E4',
+    backgroundColor: Colors.accent.primary,
     borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 12,
   },
   buttonText: {
-    color: '#FFF',
+    color: Colors.text.inverse,
     fontSize: 16,
     fontWeight: '500',
   },

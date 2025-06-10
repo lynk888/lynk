@@ -21,33 +21,52 @@ const ContactsScreen = () => {
   const { contacts, loading, error, refreshContacts, migrateContacts } = useContacts();
   const { findOrCreateOneToOneConversation } = useConversations();
   const [migrated, setMigrated] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
 
   // Migrate contacts from AsyncStorage to Supabase on first load
   useEffect(() => {
-    if (!migrated) {
-      migrateContacts();
-      setMigrated(true);
-    }
+    const initializeContacts = async () => {
+      if (!migrated) {
+        try {
+          await migrateContacts();
+          setMigrated(true);
+        } catch (err) {
+          console.error('Failed to migrate contacts:', err);
+        }
+      }
+    };
+    initializeContacts();
   }, [migrateContacts, migrated]);
 
   // Handle errors
   useEffect(() => {
     if (error) {
-      Alert.alert('Error', error.message);
+      Alert.alert(
+        'Error',
+        error.message || 'An unexpected error occurred. Please try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: refreshContacts
+          },
+          {
+            text: 'OK',
+            style: 'cancel'
+          }
+        ]
+      );
     }
-  }, [error]);
+  }, [error, refreshContacts]);
 
   // Handle contact press - find or create conversation and navigate to chat
   const handleContactPress = async (contact: Contact) => {
+    if (isNavigating) return; // Prevent multiple navigation attempts
+    
     try {
-      // Show loading indicator
-      // You could implement a loading state here
-
-      // Find or create a conversation with this contact
+      setIsNavigating(true);
       const conversation = await findOrCreateOneToOneConversation(contact.contact_id);
 
       if (conversation) {
-        // Navigate to chat screen with conversation ID
         router.push({
           pathname: '/(root)/Chat/ChatScreen2',
           params: {
@@ -60,8 +79,23 @@ const ContactsScreen = () => {
         });
       }
     } catch (err) {
-      Alert.alert('Error', 'Failed to open chat. Please try again.');
-      console.error(err);
+      Alert.alert(
+        'Error',
+        'Failed to open chat. Please try again.',
+        [
+          {
+            text: 'Retry',
+            onPress: () => handleContactPress(contact)
+          },
+          {
+            text: 'Cancel',
+            style: 'cancel'
+          }
+        ]
+      );
+      console.error('Error opening chat:', err);
+    } finally {
+      setIsNavigating(false);
     }
   };
 

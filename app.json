@@ -6,22 +6,22 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "splash": {
-      "image": "./assets/images/lynklogo.png",
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#2a83e8"
+      "backgroundColor": "#ADD8E6"
     },
     "scheme": "lynk",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.lynk"
+      "bundleIdentifier": "com.lynk"
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#ADD8E6"
       },
-      "package": "com.anonymous.lynk"
+      "package": "com.lynk"
     },
     "plugins": [
       [
@@ -30,7 +30,6 @@
           "origin": "https://lynk.app"
         }
       ]
-    ],
-    "newArchEnabled": true
+    ]
   }
 }

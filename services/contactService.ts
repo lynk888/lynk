@@ -160,7 +160,10 @@ export class ContactService {
     }
 
     const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return [];
+    if (!userData.user) {
+      console.warn('No authenticated user found');
+      return [];
+    }
 
     try {
       // First try to search by exact email if query looks like an email
@@ -172,7 +175,9 @@ export class ContactService {
           .neq('id', userData.user.id)
           .limit(1);
 
-        if (!exactError && exactMatch && exactMatch.length > 0) {
+        if (exactError) {
+          console.error('Error searching for exact email match:', exactError);
+        } else if (exactMatch && exactMatch.length > 0) {
           return exactMatch;
         }
       }
@@ -187,16 +192,17 @@ export class ContactService {
 
       if (error) {
         if (error.message.includes('relation "public.profiles" does not exist')) {
-          console.log('Profiles table does not exist yet. Cannot search users.');
+          console.warn('Profiles table does not exist yet. Please run database migrations.');
           return [];
         }
-        throw error;
+        console.error('Error searching users:', error);
+        return [];
       }
 
       // Filter out any results with invalid UUIDs
       return (data || []).filter(user => this.isValidUUID(user.id));
     } catch (err) {
-      console.error('Error searching users:', err);
+      console.error('Unexpected error searching users:', err);
       return [];
     }
   }

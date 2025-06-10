@@ -6,7 +6,7 @@ import {
   Text, 
   TextInputProps 
 } from 'react-native';
-import { Colors } from '@/constants/Colors';
+import { Colors } from '../constants/Colors';
 
 interface InputProps extends TextInputProps {
   error?: string;
@@ -20,7 +20,7 @@ export const Input: React.FC<InputProps> = ({ error, ...props }) => {
           styles.input,
           error && styles.inputError,
         ]}
-        placeholderTextColor={Colors.light.icon}
+        placeholderTextColor={Colors.text.tertiary}
         {...props}
       />
       {error && <Text style={styles.errorText}>{error}</Text>}
@@ -35,17 +35,18 @@ const styles = StyleSheet.create({
   input: {
     height: 48,
     borderWidth: 1,
-    borderColor: Colors.light.icon,
+    borderColor: Colors.border.medium,
     borderRadius: 8,
     paddingHorizontal: 16,
     fontSize: 16,
-    color: Colors.light.text,
+    color: Colors.text.primary,
+    backgroundColor: Colors.background.primary,
   },
   inputError: {
-    borderColor: 'red',
+    borderColor: Colors.status.error,
   },
   errorText: {
-    color: 'red',
+    color: Colors.status.error,
     fontSize: 12,
     marginTop: 4,
   },

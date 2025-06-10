@@ -1,0 +1,638 @@
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  SafeAreaView,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  FlatList,
+  ActivityIndicator,
+  Alert,
+  Pressable,
+  ScrollView,
+} from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import { useMessages } from '../../../hooks/useMessages';
+import { useTypingIndicator } from '../../../hooks/useTypingIndicator';
+import { useBlockedUsers } from '../../../hooks/useBlockedUsers';
+import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
+import { supabase } from '../../../utils/supabase';
+import { useAuth } from '../../../context/AuthContext';
+import { Message } from '../../../hooks/useMessages';
+
+const ChatScreen2 = () => {
+  const router = useRouter();
+  const params = useLocalSearchParams<{ contactId: string }>();
+  const { conversationId } = params;
+  const flatListRef = useRef<FlatList>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
+
+  // Initialize with params
+  const [contactName] = useState<string>(params.name ? String(params.name) : '');
+  const [avatarUri] = useState<string>(params.avatarUri ? String(params.avatarUri) : '');
+  const [contactProfile, setContactProfile] = useState<any>(null);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Get current user ID
+  const { userId } = useAuth();
+
+  // Initialize hooks
+  const { isUserBlocked, blockUser, unblockUser } = useBlockedUsers();
+  const { markAsRead } = useUnreadMessages();
+
+  // Use real-time messages hook
+  const {
+    messages,
+    loading,
+    error,
+    hasMore,
+    loadMoreMessages,
+    sendMessage,
+    markAllAsRead,
+    deleteConversation
+  } = useMessages(conversationId ? String(conversationId) : undefined);
+
+  // Use typing indicator hook
+  const { isAnyoneTyping, setTyping } = useTypingIndicator(
+    conversationId ? String(conversationId) : undefined
+  );
+
+  // Handle text input changes with debounced typing indicator
+  const [messageText, setMessageText] = useState('');
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Ensure contactId is a string
+  const safeContactId = typeof params.contactId === 'string' ? params.contactId : Array.isArray(params.contactId) ? params.contactId[0] : '';
+
+  const handleTextChange = (text: string) => {
+    setMessageText(text);
+
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (text.trim().length > 0) {
+      setTyping(true);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+      setTyping(false);
+    }, 2000);
+  };
+
+  // Handle sending a message
+  const handleSendMessage = async () => {
+    if (messageText.trim() === '') return;
+    if (safeContactId && isUserBlocked(safeContactId)) {
+      Alert.alert('Error', 'Cannot send message to blocked user');
+      return;
+    }
+
+    try {
+      setTyping(false);
+      const textToSend = messageText;
+      setMessageText('');
+      await sendMessage(textToSend);
+    } catch (error) {
+      console.error('Error sending message:', error);
+      Alert.alert('Error', 'Failed to send message. Please try again.');
+    }
+  };
+
+  // Mark messages as read when the screen is focused
+  useEffect(() => {
+    if (conversationId && userId) {
+      markAllAsRead();
+      markAsRead(String(conversationId));
+    }
+  }, [conversationId, userId, markAllAsRead, markAsRead]);
+
+  // Handle long press on chat
+  const handleLongPress = () => {
+    Alert.alert(
+      'Chat Options',
+      'What would you like to do?',
+      [
+        {
+          text: 'Delete Chat',
+          onPress: handleDeleteChat,
+          style: 'destructive'
+        },
+        {
+          text: 'View Profile',
+          onPress: () => router.push({
+            pathname: '/(root)/Profile/ProfileScreen',
+            params: { userId: safeContactId }
+          })
+        },
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        }
+      ]
+    );
+  };
+
+  // Handle chat deletion
+  const handleDeleteChat = async () => {
+    Alert.alert(
+      'Delete Chat',
+      'Are you sure you want to delete this chat? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteConversation();
+              router.back();
+            } catch (error) {
+              console.error('Error deleting chat:', error);
+              Alert.alert('Error', 'Failed to delete chat. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  // Handle blocking/unblocking user
+  const handleBlockUser = async () => {
+    if (!safeContactId) return;
+    
+    try {
+      if (isUserBlocked(safeContactId)) {
+        await unblockUser(safeContactId);
+        Alert.alert('Success', 'User has been unblocked');
+      } else {
+        await blockUser(safeContactId);
+        Alert.alert('Success', 'User has been blocked');
+      }
+    } catch (error) {
+      console.error('Error toggling block status:', error);
+      Alert.alert('Error', 'Failed to update block status');
+    }
+  };
+
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    if (messages.length > 0 && flatListRef.current) {
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    }
+  }, [messages.length]);
+
+  // Handle errors
+  useEffect(() => {
+    if (error) {
+      Alert.alert('Error', error.message);
+    }
+  }, [error]);
+
+  // Update all contactId references to use safeContactId
+  useEffect(() => {
+    if (safeContactId) {
+      fetchContactProfile(safeContactId);
+    }
+  }, [safeContactId]);
+
+  // Update isUserBlocked check
+  if (safeContactId && isUserBlocked(safeContactId)) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>This user has been blocked</Text>
+      </View>
+    );
+  }
+
+  const renderMessage = (message: Message) => {
+    const isOwnMessage = message.sender_id === userId;
+    const isBlocked = isUserBlocked(message.sender_id);
+
+    return (
+      <View
+        key={message.id}
+        style={{
+          flexDirection: 'row',
+          justifyContent: isOwnMessage ? 'flex-end' : 'flex-start',
+          marginVertical: 4,
+          paddingHorizontal: 16,
+        }}
+      >
+        <View
+          style={{
+            backgroundColor: isOwnMessage ? '#007AFF' : '#E5E5EA',
+            padding: 12,
+            borderRadius: 16,
+            maxWidth: '80%',
+          }}
+        >
+          <Text
+            style={{
+              color: isOwnMessage ? 'white' : 'black',
+              fontSize: 16,
+            }}
+          >
+            {isBlocked ? 'This message is from a blocked user' : message.content}
+          </Text>
+          <Text
+            style={{
+              color: isOwnMessage ? 'rgba(255, 255, 255, 0.7)' : 'rgba(0, 0, 0, 0.5)',
+              fontSize: 12,
+              marginTop: 4,
+            }}
+          >
+            {new Date(message.created_at).toLocaleTimeString()}
+            {isOwnMessage && message.read && ' ✓✓'}
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => router.back()}
+        >
+          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+        </TouchableOpacity>
+        
+        <Pressable 
+          style={styles.headerProfile}
+          onPress={() => router.push({
+            pathname: '/(root)/Profile/ProfileScreen',
+            params: { userId: safeContactId }
+          })}
+        >
+          <Image
+            source={{ 
+              uri: contactProfile?.avatar_url || avatarUri || 'https://via.placeholder.com/40'
+            }}
+            style={styles.profileImage}
+          />
+          <Text style={styles.headerName}>
+            {contactProfile?.username || contactName || 'User'}
+          </Text>
+        </Pressable>
+
+        <View style={styles.headerRight}>
+          <TouchableOpacity style={styles.callButton}>
+            <Ionicons name="call" size={24} color="#007AFF" />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.menuButton}
+            onPress={() => setShowMenu(!showMenu)}
+          >
+            <Ionicons name="ellipsis-horizontal" size={24} color="#007AFF" />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      {/* Menu Overlay */}
+      {showMenu && (
+        <View style={styles.menuOverlay}>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              router.push({
+                pathname: '/(root)/Profile/ProfileScreen',
+                params: { userId: safeContactId }
+              });
+            }}
+          >
+            <Ionicons name="person" size={20} color="#000" />
+            <Text style={styles.menuItemText}>View Profile</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.menuItem}
+            onPress={() => {
+              setShowMenu(false);
+              handleBlockUser();
+            }}
+          >
+            <Ionicons 
+              name={isUserBlocked(safeContactId) ? "lock-open" : "lock-closed"} 
+              size={20} 
+              color="#000" 
+            />
+            <Text style={styles.menuItemText}>
+              {isUserBlocked(safeContactId) ? 'Unblock User' : 'Block User'}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={[styles.menuItem, styles.menuItemDanger]}
+            onPress={() => {
+              setShowMenu(false);
+              handleDeleteChat();
+            }}
+          >
+            <Ionicons name="trash" size={20} color="#FF3B30" />
+            <Text style={[styles.menuItemText, styles.menuItemTextDanger]}>
+              Delete Chat
+            </Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Chat Messages */}
+      <Pressable 
+        style={styles.messagesContainer}
+        onLongPress={handleLongPress}
+      >
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#007AFF" />
+          </View>
+        ) : messages.length === 0 ? (
+          <View style={styles.emptyChat}>
+            <Text style={styles.emptyChatText}>
+              No messages yet with {contactName || 'this contact'}
+            </Text>
+            <Text style={styles.emptyChatSubtext}>
+              Send a message to start a conversation!
+            </Text>
+          </View>
+        ) : (
+          <ScrollView
+            ref={scrollViewRef}
+            style={styles.messagesList}
+            onScroll={({ nativeEvent }) => {
+              const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
+              const isCloseToTop = contentOffset.y <= 0;
+              if (isCloseToTop && hasMore && !loading) {
+                loadMoreMessages();
+              }
+            }}
+            scrollEventThrottle={400}
+          >
+            {messages.map(renderMessage)}
+            {isAnyoneTyping && (
+              <View style={styles.typingIndicator}>
+                <Text style={styles.typingText}>
+                  {contactName || 'Someone'} is typing...
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        )}
+      </Pressable>
+
+      {/* Input Area */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+      >
+        <View style={styles.inputContainer}>
+          <TextInput
+            style={styles.input}
+            value={messageText}
+            onChangeText={handleTextChange}
+            placeholder="Type a message..."
+            placeholderTextColor="#8E8E93"
+            multiline
+          />
+          <TouchableOpacity
+            style={[
+              styles.sendButton,
+              !messageText.trim() && styles.sendButtonDisabled
+            ]}
+            onPress={handleSendMessage}
+            disabled={!messageText.trim()}
+          >
+            <Ionicons
+              name="send"
+              size={24}
+              color={messageText.trim() ? '#007AFF' : '#8E8E93'}
+            />
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E5EA',
+  },
+  backButton: {
+    marginRight: 16,
+  },
+  headerProfile: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  profileImage: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+  },
+  headerName: {
+    fontSize: 18,
+    fontWeight: '600',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  callButton: {
+    marginRight: 16,
+  },
+  menuButton: {
+    padding: 4,
+  },
+  menuOverlay: {
+    position: 'absolute',
+    top: 60,
+    right: 16,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+    zIndex: 1000,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderRadius: 8,
+  },
+  menuItemDanger: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+  },
+  menuItemText: {
+    marginLeft: 12,
+    fontSize: 16,
+  },
+  menuItemTextDanger: {
+    color: '#FF3B30',
+  },
+  messagesContainer: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyChat: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+  },
+  emptyChatText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#8E8E93',
+    textAlign: 'center',
+  },
+  emptyChatSubtext: {
+    fontSize: 14,
+    color: '#8E8E93',
+    textAlign: 'center',
+    marginTop: 8,
+  },
+  messagesList: {
+    padding: 16,
+  },
+  messageWrapper: {
+    flexDirection: 'row',
+    marginBottom: 8,
+    maxWidth: '80%',
+  },
+  sentWrapper: {
+    alignSelf: 'flex-end',
+  },
+  receivedWrapper: {
+    alignSelf: 'flex-start',
+  },
+  messageAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    marginRight: 8,
+    alignSelf: 'flex-end',
+  },
+  messageBubble: {
+    padding: 12,
+    borderRadius: 16,
+    maxWidth: '100%',
+  },
+  sentBubble: {
+    backgroundColor: '#007AFF',
+    borderBottomRightRadius: 4,
+  },
+  receivedBubble: {
+    backgroundColor: '#E5E5EA',
+    borderBottomLeftRadius: 4,
+  },
+  senderName: {
+    fontSize: 12,
+    color: '#8E8E93',
+    marginBottom: 4,
+  },
+  messageText: {
+    fontSize: 16,
+    lineHeight: 20,
+  },
+  sentText: {
+    color: '#FFFFFF',
+  },
+  receivedText: {
+    color: '#000000',
+  },
+  messageTime: {
+    fontSize: 12,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  sentTime: {
+    color: '#FFFFFF',
+  },
+  receivedTime: {
+    color: '#8E8E93',
+  },
+  readIcon: {
+    marginLeft: 4,
+  },
+  typingIndicator: {
+    padding: 8,
+    backgroundColor: '#F2F2F7',
+  },
+  typingText: {
+    fontSize: 12,
+    color: '#8E8E93',
+    fontStyle: 'italic',
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E5EA',
+    backgroundColor: '#FFFFFF',
+  },
+  input: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 8,
+    maxHeight: 100,
+    fontSize: 16,
+  },
+  sendButton: {
+    padding: 8,
+  },
+  sendButtonDisabled: {
+    opacity: 0.5,
+  },
+  errorText: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 32,
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#FF3B30',
+    textAlign: 'center',
+  },
+});
+
+export default ChatScreen2;

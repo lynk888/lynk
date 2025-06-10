@@ -1,168 +1,196 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '../utils/supabase';
-import { Message, MessageService } from '../services/messageService';
+import { useAuth } from '../context/AuthContext';
 
-export function useMessages(conversationId: string | undefined) {
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  read: boolean;
+  attachment_url?: string;
+  attachment_type?: string;
+}
+
+export function useMessages(conversationId?: string) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [oldestMessageDate, setOldestMessageDate] = useState<string | null>(null);
+  const { userId } = useAuth();
 
-  // Update database schema on mount
-  useEffect(() => {
-    MessageService.updateDatabaseSchema().catch(console.error);
-  }, []);
-
-  // Fetch initial messages
-  useEffect(() => {
-    if (!conversationId) return;
-
-    let isMounted = true;
-
-    const fetchMessages = async () => {
-      try {
-        setLoading(true);
-        const initialMessages = await MessageService.getMessages(conversationId);
-
-        if (isMounted) {
-          // Sort messages by created_at in ascending order
-          const sortedMessages = initialMessages.sort((a, b) =>
-            new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-          );
-
-          setMessages(sortedMessages);
-
-          // Set oldest message date for pagination
-          if (sortedMessages.length > 0) {
-            setOldestMessageDate(sortedMessages[0].created_at);
-          }
-
-          // If we got fewer messages than the limit, there are no more to load
-          setHasMore(initialMessages.length === 50);
-        }
-      } catch (err) {
-        if (isMounted) {
-          setError(err instanceof Error ? err : new Error('Failed to fetch messages'));
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchMessages();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [conversationId]);
-
-  // Subscribe to new messages and read status updates
-  useEffect(() => {
-    if (!conversationId) return;
-
-    // Subscribe to new messages and read status
-    const unsubscribe = MessageService.subscribeToMessages(
-      conversationId,
-      (newMessage) => {
-        setMessages(prevMessages => {
-          // Check if message already exists (to prevent duplicates)
-          if (prevMessages.some(msg => msg.id === newMessage.id)) {
-            return prevMessages;
-          }
-          return [...prevMessages, newMessage];
-        });
-      },
-      (userId, messageIds) => {
-        // Update read status for messages
-        setMessages(prevMessages =>
-          prevMessages.map(msg =>
-            messageIds.includes(msg.id) ? { ...msg, is_read: true } : msg
-          )
-        );
-      }
-    );
-
-    return () => {
-      unsubscribe();
-    };
-  }, [conversationId]);
-
-  // Load more messages (pagination)
-  const loadMoreMessages = useCallback(async () => {
-    if (!conversationId || !hasMore || !oldestMessageDate || loading) return;
+  const fetchMessages = useCallback(async (limit = 20, before?: string) => {
+    if (!conversationId || !userId) return;
 
     try {
       setLoading(true);
-      const olderMessages = await MessageService.getMessages(conversationId, 50, oldestMessageDate);
+      const query = supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: false })
+        .limit(limit);
 
-      if (olderMessages.length === 0) {
-        setHasMore(false);
-        return;
+      if (before) {
+        query.lt('created_at', before);
       }
 
-      // Sort messages by created_at in ascending order
-      const sortedMessages = olderMessages.sort((a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-      );
+      const { data, error } = await query;
 
-      // Update oldest message date for next pagination
-      if (sortedMessages.length > 0) {
-        setOldestMessageDate(sortedMessages[0].created_at);
-      }
+      if (error) throw error;
 
-      // Merge with existing messages
-      setMessages(prev => [...sortedMessages, ...prev]);
+      setMessages(prev => {
+        const newMessages = data as Message[];
+        if (before) {
+          return [...prev, ...newMessages];
+        }
+        return newMessages;
+      });
 
-      // If we got fewer messages than the limit, there are no more to load
-      setHasMore(olderMessages.length === 50);
+      setHasMore(data.length === limit);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to load more messages'));
+      setError(err instanceof Error ? err : new Error('Failed to fetch messages'));
     } finally {
       setLoading(false);
     }
-  }, [conversationId, hasMore, oldestMessageDate, loading]);
+  }, [conversationId, userId]);
 
-  // Send a message
-  const sendMessage = useCallback(async (content: string, attachmentUrl?: string, attachmentType?: string) => {
-    if (!conversationId) return null;
-
-    try {
-      const message = await MessageService.sendMessage(
-        conversationId,
-        content,
-        attachmentUrl,
-        attachmentType
-      );
-
-      // The real-time subscription will handle adding the message to the state
-      return message;
-    } catch (err) {
-      setError(err instanceof Error ? err : new Error('Failed to send message'));
-      return null;
+  // Initial fetch
+  useEffect(() => {
+    if (conversationId) {
+      fetchMessages();
     }
-  }, [conversationId]);
+  }, [conversationId, fetchMessages]);
 
-  // Mark all messages as read
-  const markAllAsRead = useCallback(async () => {
+  // Subscribe to new messages
+  useEffect(() => {
     if (!conversationId) return;
 
-    try {
-      await MessageService.markAllAsRead(conversationId);
-    } catch (err) {
-      console.error('Failed to mark messages as read:', err);
-    }
+    const channel = supabase.channel(`messages:${conversationId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        setMessages(prev => [payload.new as Message, ...prev]);
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        setMessages(prev => prev.map(msg => 
+          msg.id === payload.new.id ? { ...msg, ...payload.new } : msg
+        ));
+      })
+      .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'messages',
+        filter: `conversation_id=eq.${conversationId}`,
+      }, (payload) => {
+        setMessages(prev => prev.filter(msg => msg.id !== payload.old.id));
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [conversationId]);
+
+  const sendMessage = async (content: string) => {
+    if (!conversationId || !userId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('messages')
+        .insert({
+          conversation_id: conversationId,
+          sender_id: userId,
+          content,
+          read: false
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to send message'));
+      throw err;
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!conversationId || !userId) return;
+
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .update({ read: true })
+        .eq('conversation_id', conversationId)
+        .eq('read', false)
+        .neq('sender_id', userId);
+
+      if (error) throw error;
+    } catch (err) {
+      console.error('Error marking messages as read:', err);
+    }
+  };
+
+  const deleteConversation = async () => {
+    if (!conversationId || !userId) return;
+
+    try {
+      // Delete all messages in the conversation
+      const { error: messagesError } = await supabase
+        .from('messages')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      if (messagesError) throw messagesError;
+
+      // Delete conversation participants
+      const { error: participantsError } = await supabase
+        .from('conversation_participants')
+        .delete()
+        .eq('conversation_id', conversationId);
+
+      if (participantsError) throw participantsError;
+
+      // Delete the conversation
+      const { error: conversationError } = await supabase
+        .from('conversations')
+        .delete()
+        .eq('id', conversationId);
+
+      if (conversationError) throw conversationError;
+
+      // Clear local state
+      setMessages([]);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Failed to delete conversation'));
+      throw err;
+    }
+  };
+
+  const loadMoreMessages = useCallback(() => {
+    if (loading || !hasMore || messages.length === 0) return;
+    const lastMessage = messages[messages.length - 1];
+    fetchMessages(20, lastMessage.created_at);
+  }, [loading, hasMore, messages, fetchMessages]);
 
   return {
     messages,
     loading,
     error,
     hasMore,
-    loadMoreMessages,
     sendMessage,
-    markAllAsRead
+    markAllAsRead,
+    deleteConversation,
+    loadMoreMessages
   };
 }

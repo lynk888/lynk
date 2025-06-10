@@ -8,14 +8,10 @@ const supabaseAnonKey = Constants.expoConfig?.extra?.supabaseAnonKey || process.
 
 // Check if configuration exists
 if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase configuration. Please check your environment variables.');
+  throw new Error('Missing Supabase configuration. Please check your environment variables.');
 }
 
-// Use environment variables properly
-const url = process.env.EXPO_PUBLIC_SUPABASE_URL || 'your-supabase-url';
-const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
-
-export const supabase = createClient(url, key, {
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     storage: AsyncStorage,
     autoRefreshToken: true,

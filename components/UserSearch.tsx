@@ -4,16 +4,13 @@ import { supabase } from '../utils/supabase';
 import { useNavigation } from '@react-navigation/native';
 import { formatDistanceToNow } from 'date-fns';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
+// import { useSimpleContacts } from '../hooks/useSimpleContacts';
+// import { useMessageStore } from '../store/messageStore';
+// import { BlockingService } from '../services/blockingService';
+import { UserService, User } from '../services/userService';
+import { Colors } from '../constants/Colors';
+import { MessageCountBadge } from './MessageCountBadge';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-
-export interface User {
-  id: string;
-  username: string;
-  avatar_url: string | null;
-  email: string;
-  is_online: boolean;
-  last_seen: string;
-}
 
 type RootStackParamList = {
   Chat: { conversationId: string; recipientName: string };
@@ -23,22 +20,34 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'Chat'>;
 
 interface UserSearchProps {
   onUserSelected?: (user: User) => void;
+  showAddToContacts?: boolean;
+  showMessageCounts?: boolean;
 }
 
 interface UserItemProps {
   user: User;
   onPress: () => void;
   onStartConversation: () => void;
+  onAddToContacts?: () => void;
   showStartChatButton: boolean;
-  getLastSeenText: (lastSeen: string, isOnline: boolean) => string;
+  showAddToContactsButton?: boolean;
+  showMessageCount?: boolean;
+  messageCount?: number;
+  getLastSeenText: (lastSeen: string | undefined, isOnline: boolean | undefined) => string;
+  isSelected?: boolean;
 }
 
 const UserItem: React.FC<UserItemProps> = ({
   user,
   onPress,
   onStartConversation,
+  onAddToContacts,
   showStartChatButton,
-  getLastSeenText
+  showAddToContactsButton = false,
+  showMessageCount = false,
+  messageCount = 0,
+  getLastSeenText,
+  isSelected = false
 }) => {
   // Use the user data directly without additional hooks to avoid hook violations in FlatList
   const isOnline = user.is_online;
@@ -46,8 +55,12 @@ const UserItem: React.FC<UserItemProps> = ({
 
   return (
     <TouchableOpacity
-      style={styles.userItem}
+      style={[
+        styles.userItem,
+        isSelected && styles.userItemSelected
+      ]}
       onPress={onPress}
+      activeOpacity={0.7}
     >
       <View style={styles.avatarContainer}>
         {user.avatar_url ? (
@@ -61,39 +74,65 @@ const UserItem: React.FC<UserItemProps> = ({
         ) : (
           <View style={[styles.avatar, styles.defaultAvatar]}>
             <Text style={styles.defaultAvatarText}>
-              {user.username.charAt(0).toUpperCase()}
+              {(user.username || user.email || 'U').charAt(0).toUpperCase()}
             </Text>
           </View>
         )}
         {isOnline && <View style={styles.onlineIndicator} />}
       </View>
       <View style={styles.userInfo}>
-        <Text style={styles.username}>{user.username}</Text>
+        <View style={styles.userInfoHeader}>
+          <Text style={styles.username}>{user.username}</Text>
+          {showMessageCount && messageCount > 0 && (
+            <MessageCountBadge count={messageCount} size="small" />
+          )}
+        </View>
         <Text style={styles.lastSeen}>
           {getLastSeenText(lastSeen, isOnline)}
         </Text>
       </View>
-      {showStartChatButton && (
-        <TouchableOpacity
-          style={styles.startChatButton}
-          onPress={onStartConversation}
-        >
-          <Text style={styles.startChatButtonText}>Start Chat</Text>
-        </TouchableOpacity>
-      )}
+
+      <View style={styles.actionsContainer}>
+        {showAddToContactsButton && onAddToContacts && (
+          <TouchableOpacity
+            style={styles.addContactButton}
+            onPress={onAddToContacts}
+          >
+            <Text style={styles.addContactButtonText}>Add</Text>
+          </TouchableOpacity>
+        )}
+
+        {showStartChatButton && (
+          <TouchableOpacity
+            style={styles.startChatButton}
+            onPress={onStartConversation}
+          >
+            <Text style={styles.startChatButtonText}>Chat</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
 
-export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
+export const UserSearch: React.FC<UserSearchProps> = ({
+  onUserSelected,
+  showAddToContacts = false,
+  showMessageCounts = false
+}) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
   const navigation = useNavigation<NavigationProp>();
   const searchTimeout = useRef<NodeJS.Timeout>();
+
+  // Store hooks (temporarily disabled)
+  // const { addContact, refreshContacts } = useSimpleContacts();
+  // const { messageCounts } = useMessageStore();
 
   // Use the online status hook
   useOnlineStatus();
@@ -134,24 +173,49 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
     setError(null);
 
     try {
-      const { data, error: searchError } = await supabase
+      // Try the search function with explicit type casting
+      let { data, error: searchError } = await supabase
         .rpc('search_users', {
-          search_term: term,
-          page_number: pageNum,
-          page_size: 20
+          search_term: term as string,
+          page_number: pageNum as number,
+          page_size: 20 as number
         });
+
+      // If search function doesn't exist, fall back to direct table query
+      if (searchError && searchError.code === '42883') {
+        console.log('Search function not found, using direct query');
+        const directResult = await supabase
+          .from('profiles')
+          .select('id, username, email, avatar_url, created_at, updated_at')
+          .or(`username.ilike.%${term}%, email.ilike.%${term}%`)
+          .neq('id', (await supabase.auth.getUser()).data.user?.id || '')
+          .order('username')
+          .range((pageNum - 1) * 20, pageNum * 20 - 1);
+
+        data = directResult.data;
+        searchError = directResult.error;
+      }
 
       if (searchError) {
         throw new Error(searchError.message);
       }
 
+      // Filter out blocked users manually if using basic search (temporarily disabled)
+      let filteredData = data || [];
+      // try {
+      //   filteredData = await BlockingService.filterBlockedUsers(data || []);
+      // } catch (blockingError) {
+      //   console.log('Blocking filter failed, using unfiltered results:', blockingError);
+      //   // Continue with unfiltered results if blocking service fails
+      // }
+
       if (pageNum === 1) {
-        setUsers(data || []);
+        setUsers(filteredData);
       } else {
-        setUsers(prev => [...prev, ...(data || [])]);
+        setUsers(prev => prev.concat(filteredData));
       }
 
-      setHasMore((data || []).length === 20);
+      setHasMore(filteredData.length === 20);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to search users';
       setError(errorMessage);
@@ -182,29 +246,65 @@ export const UserSearch: React.FC<UserSearchProps> = ({ onUserSelected }) => {
     }
   };
 
-  const getLastSeenText = (lastSeen: string, isOnline: boolean): string => {
+  const getLastSeenText = (lastSeen: string | undefined, isOnline: boolean | undefined): string => {
     if (isOnline) return 'Online';
+    if (!lastSeen) return 'Recently active';
     try {
       return `Last seen ${formatDistanceToNow(new Date(lastSeen), { addSuffix: true })}`;
     } catch (err) {
-      return 'Last seen recently';
+      return 'Recently active';
     }
   };
 
   const handleUserPress = (user: User) => {
+    setSelectedUserId(user.id);
     if (onUserSelected) {
       onUserSelected(user);
     }
   };
 
+  const handleAddToContacts = async (user: User) => {
+    try {
+      // Check if user is blocked (temporarily disabled)
+      // const isBlocked = await BlockingService.isUserBlocked(user.id);
+      // const isBlockedBy = await BlockingService.isBlockedBy(user.id);
+
+      // if (isBlocked || isBlockedBy) {
+      //   Alert.alert('Error', 'Cannot add blocked user to contacts');
+      //   return;
+      // }
+
+      // Add to contacts via UserService
+      await UserService.addContact(user.id, user.username || user.email);
+
+      // Update local store (temporarily disabled)
+      // addContact(user);
+
+      // Refresh contacts list (temporarily disabled)
+      // await refreshContacts();
+
+      Alert.alert('Success', `${user.username || user.email} has been added to your contacts`);
+    } catch (error) {
+      console.error('Error adding contact:', error);
+      Alert.alert('Error', 'Failed to add contact');
+    }
+  };
+
   const renderUserItem = ({ item }: { item: User }): JSX.Element => {
+    const messageCount = showMessageCounts ? 0 : 0; // Simplified for now
+
     return (
       <UserItem
         user={item}
         onPress={() => handleUserPress(item)}
         onStartConversation={() => handleUserPress(item)}
+        onAddToContacts={showAddToContacts ? () => handleAddToContacts(item) : undefined}
         showStartChatButton={!onUserSelected}
+        showAddToContactsButton={showAddToContacts}
+        showMessageCount={showMessageCounts}
+        messageCount={messageCount}
         getLastSeenText={getLastSeenText}
+        isSelected={selectedUserId === item.id}
       />
     );
   };
@@ -267,26 +367,33 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: Colors.background.primary,
   },
   searchInput: {
     height: 40,
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: Colors.border.medium,
     borderRadius: 8,
     paddingHorizontal: 12,
     marginBottom: 16,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: Colors.background.secondary,
+    color: Colors.text.primary,
   },
   list: {
     flex: 1,
+    backgroundColor: Colors.background.secondary,
+    borderRadius: 8,
   },
   userItem: {
     padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: Colors.border.light,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: Colors.background.primary,
+  },
+  userItemSelected: {
+    backgroundColor: Colors.accent.selection,
   },
   avatarContainer: {
     position: 'relative',
@@ -296,7 +403,7 @@ const styles = StyleSheet.create({
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#f0f0f0',
+    backgroundColor: Colors.background.tertiary,
   },
   onlineIndicator: {
     position: 'absolute',
@@ -305,72 +412,93 @@ const styles = StyleSheet.create({
     width: 12,
     height: 12,
     borderRadius: 6,
-    backgroundColor: '#4CAF50',
+    backgroundColor: Colors.status.success,
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: Colors.background.primary,
   },
   userInfo: {
     flex: 1,
   },
+  userInfoHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   username: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: Colors.text.primary,
   },
   lastSeen: {
     fontSize: 14,
-    color: '#666',
+    color: Colors.text.secondary,
     marginTop: 4,
+  },
+  actionsContainer: {
+    flexDirection: 'row',
+    gap: 8,
   },
   loader: {
     marginVertical: 20,
   },
   errorContainer: {
     padding: 12,
-    backgroundColor: '#ffebee',
+    backgroundColor: Colors.status.error + '20', // 20% opacity
     borderRadius: 8,
     marginVertical: 10,
     alignItems: 'center',
   },
   error: {
-    color: '#d32f2f',
+    color: Colors.status.error,
     textAlign: 'center',
     marginBottom: 8,
   },
   retryButton: {
-    backgroundColor: '#d32f2f',
+    backgroundColor: Colors.status.error,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 4,
   },
   retryButtonText: {
-    color: '#fff',
+    color: Colors.text.inverse,
     fontWeight: '600',
   },
   noResults: {
     textAlign: 'center',
-    color: '#666',
+    color: Colors.text.tertiary,
     marginTop: 20,
   },
+  addContactButton: {
+    backgroundColor: Colors.background.secondary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.border.medium,
+  },
+  addContactButtonText: {
+    color: Colors.text.primary,
+    fontWeight: '600',
+    fontSize: 12,
+  },
   startChatButton: {
-    backgroundColor: '#007AFF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    marginLeft: 12,
+    backgroundColor: Colors.accent.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
   },
   startChatButtonText: {
-    color: '#fff',
+    color: Colors.text.inverse,
     fontWeight: '600',
-    fontSize: 14,
+    fontSize: 12,
   },
   defaultAvatar: {
-    backgroundColor: '#007AFF',
+    backgroundColor: Colors.accent.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   defaultAvatarText: {
-    color: '#fff',
+    color: Colors.text.inverse,
     fontSize: 24,
     fontWeight: '600',
   },

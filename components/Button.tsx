@@ -1,5 +1,6 @@
 import React from 'react';
 import { TouchableOpacity, Text, StyleSheet } from 'react-native';
+import { Colors } from '../constants/Colors';
 
 interface ButtonProps {
   title: string;
@@ -23,18 +24,19 @@ const styles = StyleSheet.create({
   button: {
     width: '100%',
     height: 42,
-    backgroundColor: '#7CC2E4',
-    borderRadius: 2,
+    backgroundColor: Colors.accent.primary,
+    borderRadius: 6,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 42,
   },
   buttonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: '#E2E8F0',
   },
   buttonText: {
-    color: '#FFF',
+    color: Colors.text.inverse,
     fontFamily: 'Inter',
     fontSize: 17,
+    fontWeight: '500',
   },
 });

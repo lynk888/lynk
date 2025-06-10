@@ -1,33 +1,22 @@
 import React from 'react';
 import { Stack, useRouter } from 'expo-router';
-import { Text, View, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { Text, View, ActivityIndicator } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 
 export default function RootLayout() {
   const router = useRouter();
 
   try {
-    const { isAuthenticated } = useAuth();
+    const { isAuthenticated, isLoading } = useAuth();
 
-    if (!isAuthenticated) {
+    // Show loading while checking authentication
+    if (isLoading) {
       return (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-          <Text style={{ fontSize: 18, marginBottom: 20, textAlign: 'center' }}>
-            Please log in to access this content
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+          <ActivityIndicator size="large" color="#ADD8E6" />
+          <Text style={{ marginTop: 20, fontSize: 16, color: '#2F4F4F' }}>
+            Loading...
           </Text>
-          <TouchableOpacity
-            style={{
-              backgroundColor: '#007AFF',
-              paddingVertical: 12,
-              paddingHorizontal: 24,
-              borderRadius: 8,
-            }}
-            onPress={() => router.replace('/(auth)/Login')}
-          >
-            <Text style={{ color: 'white', fontSize: 16, fontWeight: '600' }}>
-              Go to Login
-            </Text>
-          </TouchableOpacity>
         </View>
       );
     }
@@ -39,18 +28,23 @@ export default function RootLayout() {
           animation: 'slide_from_right'
         }}
       >
-        <Stack.Screen name="Home/HomeScreen" />
-        <Stack.Screen name="Welcome/WelcomeScreen" />
-        <Stack.Screen name="Chat/ChatScreen" />
-        <Stack.Screen name="Chat/ChatScreen2" />
-        <Stack.Screen name="Chat/NewConversation" />
-        <Stack.Screen name="Chat/RealTimeChat" />
-        <Stack.Screen name="Chat/Contact/ContactScreen" />
-        <Stack.Screen name="Chat/ContactInfo/ContactInfo" />
-        <Stack.Screen name="Calls/CallsScreen" />
-        <Stack.Screen name="Settings/SettingsScreen" />
-        <Stack.Screen name="Settings/UserProfileScreen" />
-        <Stack.Screen name="Settings/NotificationsScreen" />
+        {isAuthenticated ? (
+          <>
+            <Stack.Screen name="Home/HomeScreen" />
+            <Stack.Screen name="Contacts/ContactsScreen" />
+            <Stack.Screen name="Chat/ChatScreen" />
+            <Stack.Screen name="Chat/NewConversation" />
+            <Stack.Screen name="Chat/RealTimeChat" />
+            <Stack.Screen name="Chat/Contact/ContactScreen" />
+            <Stack.Screen name="Chat/ContactInfo/ContactInfo" />
+            <Stack.Screen name="Calls/CallsScreen" />
+            <Stack.Screen name="Settings/SettingsScreen" />
+            <Stack.Screen name="Settings/UserProfileScreen" />
+            <Stack.Screen name="Settings/NotificationsScreen" />
+          </>
+        ) : (
+          <Stack.Screen name="Welcome/WelcomeScreen" />
+        )}
       </Stack>
     );
   } catch (error) {

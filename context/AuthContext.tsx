@@ -4,6 +4,7 @@ import { supabase } from '../utils/supabase';
 
 type AuthContextType = {
   isAuthenticated: boolean;
+  isLoading: boolean;
   token: string | null;
   email: string | null;
   userId: string | null;
@@ -18,15 +19,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setTokenState] = useState<string | null>(null);
   const [email, setEmailState] = useState<string | null>(null);
   const [userId, setUserIdState] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Check for existing session on mount
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.access_token) {
-        setTokenState(session.access_token);
-        setEmailState(session.user.email || null);
-        setUserIdState(session.user.id || null);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.access_token) {
+          setTokenState(session.access_token);
+          setEmailState(session.user.email || null);
+          setUserIdState(session.user.id || null);
+        }
+      } catch (error) {
+        console.error('Error checking session:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     checkSession();
@@ -63,17 +71,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    await supabase.auth.signOut();
-    await AsyncStorage.removeItem('userToken');
-    setTokenState(null);
-    setEmailState(null);
-    setUserIdState(null);
+    try {
+      await supabase.auth.signOut();
+      await AsyncStorage.clear(); // Clear all stored data to prevent state residue
+      setTokenState(null);
+      setEmailState(null);
+      setUserIdState(null);
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Force clear state even if logout fails
+      setTokenState(null);
+      setEmailState(null);
+      setUserIdState(null);
+    }
   };
 
   return (
     <AuthContext.Provider
       value={{
         isAuthenticated: !!token,
+        isLoading,
         token,
         email,
         userId,

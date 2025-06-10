@@ -6,6 +6,13 @@ export interface User {
   email: string;
   username?: string;
   avatar_url?: string;
+  bio?: string;
+  interests?: string[];
+  is_online?: boolean;
+  last_seen?: string;
+  created_at?: string;
+  updated_at?: string;
+  display_name?: string;
 }
 
 export class UserService {
@@ -145,12 +152,12 @@ export class UserService {
 
       // Filter out any contacts with invalid UUIDs and map to User objects
       return data
-        .filter(item => item.profiles && this.isValidUUID(item.profiles.id))
+        .filter(item => item.profiles && this.isValidUUID(item.profiles?.id))
         .map(item => ({
-          id: item.profiles.id,
-          email: item.profiles.email || '',
-          username: item.profiles.username,
-          avatar_url: item.profiles.avatar_url,
+          id: item.profiles?.id || '',
+          email: item.profiles?.email || '',
+          username: item.profiles?.username || '',
+          avatar_url: item.profiles?.avatar_url || null,
           display_name: item.display_name
         }));
     } catch (err) {
