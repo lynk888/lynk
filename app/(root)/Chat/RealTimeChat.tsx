@@ -13,6 +13,8 @@ import {
   Alert,
   Pressable,
   SafeAreaView,
+  Modal,
+  Animated,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useMessages } from '../../../hooks/useMessages';
@@ -25,23 +27,49 @@ import { AttachmentService } from '../../../services/attachmentService';
 import { MessageItem } from '../../../components/MessageItem';
 import { useBlockedUsers } from '../../../hooks/useBlockedUsers';
 import { useUnreadMessages } from '../../../hooks/useUnreadMessages';
+import { ProfileSheet } from './ProfileSheet';
+
+interface ServiceParticipant {
+  userId: string;
+  username: string;
+  avatarUrl: string | null;
+  isOnline: boolean;
+  lastSeen: string | null;
+  bio: string | null;
+  interests: string[] | null;
+  createdAt: string | null;
+}
+
+interface Participant {
+  id: string;
+  username: string;
+  avatar_url: string | null;
+  is_online: boolean;
+  last_seen: string | null;
+  bio: string | null;
+  interests: string[] | null;
+  created_at: string | null;
+}
 
 export default function RealTimeChat() {
   const params = useLocalSearchParams();
   const conversationId = params.conversationId as string;
   const contactId = params.contactId as string;
   const [message, setMessage] = useState('');
-  const [participants, setParticipants] = useState<any[]>([]);
+  const [participants, setParticipants] = useState<Participant[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
-  const [contactProfile, setContactProfile] = useState<any>(null);
+  const [contactProfile, setContactProfile] = useState<Participant | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const router = useRouter();
   const { token } = useAuth();
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const [isAttachmentMenuVisible, setIsAttachmentMenuVisible] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showProfileSheet, setShowProfileSheet] = useState(false);
+  const slideAnim = useRef(new Animated.Value(0)).current;
 
   // Initialize hooks
   const { isUserBlocked, blockUser, unblockUser } = useBlockedUsers();
@@ -82,20 +110,49 @@ export default function RealTimeChat() {
 
     const fetchParticipants = async () => {
       try {
-        const data = await ConversationService.getConversationParticipants(conversationId);
-        setParticipants(data);
-        if (data.length > 0) {
-          setContactProfile(data[0]);
+        console.log('Fetching participants for conversation:', conversationId);
+        const data = await ConversationService.getConversationParticipants(conversationId) as ServiceParticipant[];
+        console.log('Fetched participants:', data);
+        
+        if (!data || data.length === 0) {
+          console.error('No participants found for conversation:', conversationId);
+          setError('No participants found');
+          setLoading(false);
+          return;
+        }
+
+        // Map the data to match our Participant interface
+        const mappedParticipants: Participant[] = data.map(p => ({
+          id: p.userId,
+          username: p.username,
+          avatar_url: p.avatarUrl || null,
+          is_online: Boolean(p.isOnline),
+          last_seen: p.lastSeen || null,
+          bio: p.bio || null,
+          interests: p.interests || null,
+          created_at: p.createdAt || null
+        }));
+
+        setParticipants(mappedParticipants);
+        // Find the contact (the other participant)
+        const contact = mappedParticipants.find(p => p.id !== currentUserId);
+        if (contact) {
+          console.log('Setting contact profile:', contact);
+          setContactProfile(contact);
+        } else {
+          console.error('Contact not found in participants');
+          setError('Contact information not available');
         }
       } catch (error) {
         console.error('Error fetching participants:', error);
+        setError('Failed to load conversation');
       } finally {
         setLoading(false);
       }
     };
 
     fetchParticipants();
-  }, [conversationId]);
+  }, [conversationId, currentUserId]);
 
   // Mark messages as read when the screen is focused
   useEffect(() => {
@@ -114,6 +171,13 @@ export default function RealTimeChat() {
     }
   }, [messages]);
 
+  // Sort messages by timestamp in ascending order
+  const sortedMessages = React.useMemo(() => {
+    return [...messages].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+  }, [messages]);
+
   // Handle sending a message
   const handleSend = async () => {
     if (!message.trim() || !conversationId) {
@@ -129,19 +193,40 @@ export default function RealTimeChat() {
       return;
     }
 
+    const messageText = message.trim();
+    const tempId = `temp_${Date.now()}`;
+    
+    // Clear input and typing state immediately
+    setMessage('');
+    setTyping(false);
+
+    // Optimistically add message to UI
+    const optimisticMessage = {
+      id: tempId,
+      content: messageText,
+      sender_id: currentUserId || '',
+      conversation_id: conversationId,
+      created_at: new Date().toISOString(),
+      status: 'sending'
+    };
+
+    // Update messages list immediately
+    if (flatListRef.current) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+
     try {
-      const result = await sendMessage(message.trim());
+      // Send message in background
+      const result = await sendMessage(messageText);
       console.log('Message sent successfully:', result);
-      setMessage('');
-      setTyping(false);
     } catch (error) {
       console.error('Error sending message:', error);
       Alert.alert('Error', 'Failed to send message. Please try again.');
     }
   };
 
-  // Handle typing indicator
-  const handleTyping = (text: string) => {
+  // Optimize typing indicator
+  const handleTyping = React.useCallback((text: string) => {
     setMessage(text);
 
     if (typingTimeoutRef.current) {
@@ -152,11 +237,33 @@ export default function RealTimeChat() {
       setTyping(true);
       typingTimeoutRef.current = setTimeout(() => {
         setTyping(false);
-      }, 2000);
+      }, 2000) as unknown as NodeJS.Timeout;
     } else {
       setTyping(false);
     }
-  };
+  }, []);
+
+  // Optimize scroll behavior
+  const scrollToBottom = React.useCallback(() => {
+    if (flatListRef.current && sortedMessages.length > 0) {
+      flatListRef.current.scrollToEnd({ animated: true });
+    }
+  }, [sortedMessages.length]);
+
+  // Use batched updates for message list
+  const renderMessage = React.useCallback(({ item }: { item: any }) => (
+    <MessageItem
+      message={item}
+      isOwnMessage={item.sender_id === currentUserId}
+    />
+  ), [currentUserId]);
+
+  // Optimize FlatList configuration
+  const getItemLayout = React.useCallback((data: any, index: number) => ({
+    length: 80, // Approximate height of each message
+    offset: 80 * index,
+    index,
+  }), []);
 
   // Handle chat deletion
   const handleDeleteChat = async () => {
@@ -229,10 +336,41 @@ export default function RealTimeChat() {
     }
   };
 
+  const showProfile = () => {
+    if (!contactProfile) {
+      Alert.alert('Error', 'Contact information not available');
+      return;
+    }
+    setShowProfileSheet(true);
+    Animated.timing(slideAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const hideProfile = () => {
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(() => {
+      setShowProfileSheet(false);
+    });
+  };
+
   if (loading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>{error}</Text>
       </View>
     );
   }
@@ -258,7 +396,7 @@ export default function RealTimeChat() {
         
         <Pressable 
           style={styles.headerProfile}
-          onPress={() => router.push(`/(root)/Profile/ProfileScreen?userId=${contactId}`)}
+          onPress={showProfile}
         >
           <Image
             source={{ 
@@ -291,7 +429,7 @@ export default function RealTimeChat() {
             style={styles.menuItem}
             onPress={() => {
               setShowMenu(false);
-              router.push(`/(root)/Profile/ProfileScreen?userId=${contactId}`);
+              showProfile();
             }}
           >
             <Ionicons name="person" size={20} color="#000" />
@@ -328,6 +466,50 @@ export default function RealTimeChat() {
         </View>
       )}
 
+      {/* Profile Sheet Modal */}
+      <Modal
+        visible={showProfileSheet}
+        transparent
+        animationType="none"
+        onRequestClose={hideProfile}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={hideProfile}
+        >
+          <Animated.View
+            style={[
+              styles.modalContent,
+              {
+                transform: [
+                  {
+                    translateY: slideAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [600, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <ProfileSheet
+                profile={{
+                  username: contactProfile?.username ?? 'Unknown User',
+                  avatar_url: contactProfile?.avatar_url ?? null,
+                  bio: contactProfile?.bio ?? null,
+                  interests: contactProfile?.interests ?? null,
+                  created_at: contactProfile?.created_at ?? null,
+                  is_online: contactProfile?.is_online ?? false,
+                }}
+                onClose={hideProfile}
+              />
+            </TouchableOpacity>
+          </Animated.View>
+        </TouchableOpacity>
+      </Modal>
+
       {/* Chat Messages */}
       <View style={styles.messagesContainer}>
         {messages.length === 0 ? (
@@ -342,17 +524,24 @@ export default function RealTimeChat() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={sortedMessages}
+            renderItem={renderMessage}
             keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <MessageItem
-                message={item}
-                isOwnMessage={item.sender_id === currentUserId}
-              />
-            )}
-            contentContainerStyle={styles.messageList}
-            onEndReached={hasMore ? loadMoreMessages : undefined}
+            onEndReached={loadMoreMessages}
             onEndReachedThreshold={0.5}
+            inverted={false}
+            initialScrollIndex={sortedMessages.length - 1}
+            getItemLayout={getItemLayout}
+            removeClippedSubviews={true}
+            maxToRenderPerBatch={10}
+            windowSize={10}
+            maintainVisibleContentPosition={{
+              minIndexForVisible: 0,
+              autoscrollToTopThreshold: 10,
+            }}
+            onContentSizeChange={scrollToBottom}
+            onLayout={scrollToBottom}
+            contentContainerStyle={styles.messageList}
           />
         )}
         {isAnyoneTyping && (
@@ -528,7 +717,8 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   messageList: {
-    padding: 16,
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
   typingIndicator: {
     padding: 8,
@@ -602,6 +792,14 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#FF3B30',
     textAlign: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: 'transparent',
   },
 });
 

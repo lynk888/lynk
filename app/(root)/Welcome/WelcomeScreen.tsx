@@ -51,6 +51,7 @@ const styles = StyleSheet.create({
   },
   textContainer: {
     alignItems: 'center',
+    marginBottom: 30,
   },
   title: {
     fontSize: 24,
@@ -70,6 +71,10 @@ const styles = StyleSheet.create({
     width: 300,
     height: 500,
     borderRadius: 10,
+  },
+  button: {
+    marginTop: 10,
+    width: '100%',
   }
 });
 
