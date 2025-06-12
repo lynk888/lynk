@@ -6,14 +6,47 @@
       "@/*": [
         "./*"
       ]
-    }
+    },
+    "types": [
+      "react",
+      "react-native",
+      "node",
+      "jest"
+    ],
+    "allowJs": true,
+    "esModuleInterop": true,
+    "jsx": "react-native",
+    "lib": ["DOM", "ESNext"],
+    "moduleResolution": "node16",
+    "module": "node16",
+    "noEmit": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "target": "ESNext"
   },
   "include": [
     "**/*.ts",
     "**/*.tsx",
-    "app/(root)/Chat/Contact/ContactScreen.tsx"
-, "app/(root)/Chat/ChatScreen1", "app/(root)/Chat/ChatScreen2"  ],
+    "app/**/*.ts",
+    "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
+    "utils/**/*.ts",
+    "utils/**/*.tsx",
+    "services/**/*.ts",
+    "services/**/*.tsx",
+    "hooks/**/*.ts",
+    "hooks/**/*.tsx",
+    "store/**/*.ts",
+    "store/**/*.tsx",
+    "context/**/*.ts",
+    "context/**/*.tsx"
+  ],
   "exclude": [
-    "supabase/functions/**/*"
+    "supabase/functions/**/*",
+    "node_modules",
+    "babel.config.js",
+    "metro.config.js",
+    "jest.config.js"
   ]
 }

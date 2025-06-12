@@ -30,8 +30,8 @@ export default {
       favicon: "./assets/favicon.png",
     },
     extra: {
-      supabaseUrl: process.env.EXPO_PUBLIC_SUPABASE_URL,
-      supabaseAnonKey: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY,
+      supabaseUrl: "https://jpirmkxxnzycatxgphel.supabase.co",
+      supabaseAnonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpwaXJta3h4bnp5Y2F0eGdwaGVsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDcwNDk0MzcsImV4cCI6MjA2MjYyNTQzN30.y-kpjqj8SLr1QENHyVq85NgJ-m4zApaOPwrOOi-Rwb0",
       eas: {
         projectId: "jpirmkxxnzycatxgphel",
       },
